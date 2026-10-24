@@ -1,0 +1,16 @@
+# Build, run and test
+
+`dotnet build -c Release -warnaserror`, `dotnet test`, and
+`dotnet run --project conformance/LmCode.Conformance` are the standard checks.
+The package-free test executable is invoked by the project's VSTest target.
+All 50 checked-in conformance vectors must run; SOURCE_COMMIT records the C++ source.
+Use `scripts/sync-vectors.sh` to refresh without recompiling vectors.
+
+Native publish: `dotnet publish examples/Greeter -r linux-x64 -c Release`.
+The Greeter project enables PublishAot. On this development machine clang 19 is in
+`~/toolchains/llvm19/bin`; specify `-p:CppCompilerAndLinker=/home/mma/toolchains/llvm19/bin/clang`
+and `-p:ObjCopyName=/home/mma/toolchains/llvm19/bin/llvm-objcopy` when needed.
+The local native Greeter was executed with the compiled hello.dslb and returned
+`{"ok": true, "result": null}`. It dynamically links glibc and libm.
+CI has native runner/publish lanes for linux-x64, linux-arm64, osx-arm64, osx-x64,
+and win-x64. The schema literal in Greeter must match schema.json byte for byte.

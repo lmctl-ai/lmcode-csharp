@@ -1,0 +1,46 @@
+name: ci
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, rid: linux-x64 }
+          - { os: ubuntu-24.04-arm, rid: linux-arm64 }
+          - { os: macos-15, rid: osx-arm64 }
+          - { os: macos-15-intel, rid: osx-x64 }
+          - { os: windows-2022, rid: win-x64 }
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.rid }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build and static analysis
+        run: dotnet build -c Release -warnaserror
+      - name: Unit tests
+        run: dotnet test -c Release
+      - name: Conformance
+        run: dotnet run -c Release --project conformance/LmCode.Conformance
+      - name: NativeAOT publish
+        run: dotnet publish examples/Greeter -r ${{ matrix.rid }} -c Release -p:PublishAot=true -p:IlcTreatWarningsAsErrors=true -o artifacts/greeter
+      - name: Run native executable
+        run: |
+          ./artifacts/greeter/Greeter --dsl-signatures
+          ./artifacts/greeter/Greeter --dsl examples/Greeter/hello.dslb

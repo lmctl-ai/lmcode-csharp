@@ -1,0 +1,2 @@
+load_error
+import 'fn unbound_extra() -> int' is not provided by the host
