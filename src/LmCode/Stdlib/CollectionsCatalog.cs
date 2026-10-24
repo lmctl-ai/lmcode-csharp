@@ -127,4 +127,5 @@ public static class CollectionsCatalog
         if (States.TryGetValue(context, out State? state)) { foreach (ObjRef reference in state.References) context.ReleaseCollection(reference); state.References.Clear(); state.Count = 0; }
     }
     internal static void EndRun(Context context) => BeginRun(context);
+    internal static ObjRef AllocateStrList(Context context, StrList list) => Allocate(context, "StrList", list);
 }

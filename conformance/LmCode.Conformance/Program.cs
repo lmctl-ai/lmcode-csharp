@@ -17,11 +17,14 @@ sealed class Stub
     public readonly ObjRef VarRef;
     public readonly ObjRef XsRef;
     public readonly MemoryStream Output = new();
+    public readonly string TempDir;
     private readonly bool standard;
 
     public Stub(bool standardCatalog)
     {
         standard = standardCatalog;
+        TempDir = standard ? Path.Combine(Path.GetTempPath(), "lmcode-" + Guid.NewGuid().ToString("N")) : "";
+        if (standard) Directory.CreateDirectory(TempDir);
         Registry = new Registry(standardCatalog);
         TraceRef = Context.Insert("Trace", Trace);
         RootRef = Context.Insert("Thing", new Thing(0));
@@ -34,6 +37,12 @@ sealed class Stub
             {
                 TestingCatalog.RegisterTesting(Registry, Output);
                 Registry.Function("printed", [], "string", (_, _) => Value.Str(new VmString(Output.ToArray())));
+                Registry.Function("test_temp_dir", [], "string", (_, _) => Value.Str(VmString.FromString(TempDir)));
+                Registry.Function("test_long_path", [], "string", (_, _) =>
+                {
+                    string parent = Path.Combine(TempDir, new string('x', 120), new string('y', 120)); Directory.CreateDirectory(parent);
+                    return Value.Str(VmString.FromString(Path.Combine(parent, "file.bin")));
+                });
             }
         }
         Registry.Context("t", "Trace");
@@ -124,7 +133,7 @@ static class Runner
             var exp = File.ReadAllLines(Path.Combine(dir, name + ".expect")); var kind = exp[0]; var lines = exp.Skip(1).Select(Unescape).ToArray(); var schemaName = schemaByName.TryGetValue(name, out var selectedSchema) ? selectedSchema : "schema.json"; var schemaBytes = File.ReadAllBytes(Path.Combine(dir, schemaName));
             using var schemaDocument = JsonDocument.Parse(schemaBytes);
             var standardCatalog = schemaDocument.RootElement.TryGetProperty("functions", out var functions) &&
-                new[] { "str_len", "math_abs", "str_list", "print" }.Any(name => functions.TryGetProperty(name, out _));
+                new[] { "str_len", "math_abs", "str_list", "print", "file_read" }.Any(name => functions.TryGetProperty(name, out _));
             var stub = new Stub(standardCatalog); stub.Bind(); var loaded = false; var ran = false; var error = ""; var code = "";
             Error? caught = null;
             try { var p = Program.Load(File.ReadAllBytes(Path.Combine(dir, name + ".dslb")), schemaBytes, stub.Registry); loaded = true; p.Run(stub.Context, stub.Registry); ran = true; }
@@ -139,8 +148,9 @@ static class Runner
                 var prefix = $"dsl line {line}{(caught.Column is ushort column ? $":{column}" : "")}: ";
                 if (exactMessage.StartsWith(prefix, StringComparison.Ordinal)) exactMessage = exactMessage[prefix.Length..];
             }
-            var ok = kind == "trace" ? ran && stub.Trace.Count == lines.Length && stub.Trace.Zip(lines).All(x => Match(x.First, x.Second)) : kind == "runtime_error" ? loaded && !ran && error.Contains(lines[0], StringComparison.Ordinal) : kind == "runtime_error_exact" ? loaded && !ran && lines.Length == 2 && code == lines[0] && exactMessage == lines[1] : kind == "runtime_error_at" ? loaded && !ran && lines.Length >= 4 && code == lines[0] && locationOk && error.Contains(lines[3], StringComparison.Ordinal) : kind == "load_error" && !loaded && error.Contains(lines[0], StringComparison.Ordinal);
+            var ok = kind == "trace" ? ran && stub.Trace.Count == lines.Length && stub.Trace.Zip(lines).All(x => Match(x.First, x.Second)) : kind == "runtime_error" ? loaded && !ran && error.Contains(lines[0], StringComparison.Ordinal) : kind == "runtime_error_exact" ? loaded && !ran && lines.Length == 2 && code == lines[0] && exactMessage == lines[1] : kind == "runtime_error_file" ? loaded && !ran && lines.Length >= 3 && code == lines[0] && exactMessage.StartsWith(lines[1] + ": ", StringComparison.Ordinal) && exactMessage.Contains(lines[2], StringComparison.Ordinal) : kind == "runtime_error_at" ? loaded && !ran && lines.Length >= 4 && code == lines[0] && locationOk && error.Contains(lines[3], StringComparison.Ordinal) : kind == "load_error" && !loaded && error.Contains(lines[0], StringComparison.Ordinal);
             Console.WriteLine((ok ? "ok - " : "FAIL - ") + name + " (" + kind + ")"); if (!ok) { failed++; Console.WriteLine("    error: " + error); }
+            if (stub.TempDir.Length != 0) try { Directory.Delete(stub.TempDir, true); } catch { }
         }
         Console.WriteLine($"{(failed == 0 ? "PASS" : "FAIL")} {names.Length - failed}/{names.Length} vectors"); return failed == 0 ? 0 : 1;
     }

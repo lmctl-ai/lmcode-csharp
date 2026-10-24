@@ -24,7 +24,8 @@ static class Tests
         int collections = CollectionsTestingCatalogTests.Run();
         int math = MathCatalogTests.Run();
         int standard = StandardRegistryTests.Run();
-        Console.WriteLine($"PASS unit tests ({checks.Length + 6 + verified + catalog + collections + math + standard})"); return 0;
+        int files = FileCatalogTests.Run();
+        Console.WriteLine($"PASS unit tests ({checks.Length + 6 + verified + catalog + collections + math + standard + files})"); return 0;
     }
 
     static bool RawBytes()

@@ -9,7 +9,7 @@ public static class StandardCatalog
         StringCatalog.RegisterString(registry);
         MathCatalog.RegisterMath(registry);
         CollectionsCatalog.RegisterCollections(registry);
-        TestingCatalog.RegisterTesting(registry, new MemoryStream());
+        FileCatalog.RegisterFile(registry);
         return registry.Signatures().ToHashSet(StringComparer.Ordinal);
     });
     public static IReadOnlyCollection<string> Signatures => Canonical.Value;
@@ -22,7 +22,7 @@ public static class StandardCatalog
             StringCatalog.RegisterString(registry);
             MathCatalog.RegisterMath(registry);
             CollectionsCatalog.RegisterCollections(registry, defaultOwned: true);
-            TestingCatalog.RegisterTesting(registry, null);
+            FileCatalog.RegisterFile(registry);
         }
         finally { registry.EndBuiltinRegistration(); }
     }

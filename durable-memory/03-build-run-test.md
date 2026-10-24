@@ -2,7 +2,7 @@
 
 `dotnet build -c Release -warnaserror`, `dotnet test`, and
 `dotnet run --project conformance/LmCode.Conformance` are the standard checks.
-`scripts/sync-std.sh --verify` confirms the byte-identical 69-signature standard schema and its `std.lock` pin.
+`scripts/sync-std.sh --verify` confirms the byte-identical 72-signature standard schema and its `std.lock` pin.
 The package-free test executable is invoked by the project's VSTest target.
 All 51 checked-in core conformance vectors must run; the `SOURCE_COMMIT` files record the C++ source for the core and catalog suites.
 Use `scripts/sync-vectors.sh` to refresh without recompiling vectors.
