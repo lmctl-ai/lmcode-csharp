@@ -21,7 +21,9 @@ static class Tests
         if (!RuntimeTests.Run()) return Fail("runtime tests");
         int verified = VerifierTests.Run();
         int catalog = StringCatalogTests.Run();
-        Console.WriteLine($"PASS unit tests ({checks.Length + 6 + verified + catalog})"); return 0;
+        int collections = CollectionsTestingCatalogTests.Run();
+        int math = MathCatalogTests.Run();
+        Console.WriteLine($"PASS unit tests ({checks.Length + 6 + verified + catalog + collections + math})"); return 0;
     }
 
     static bool RawBytes()

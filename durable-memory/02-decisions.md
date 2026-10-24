@@ -24,3 +24,4 @@
 - Catalog repeat/replace output limits are 67108864 bytes; glob matching counts iterations, class entries and trailing stars toward 2^27 work units. Limits raise `RUN_HOST` with the same messages as C++ and are host policy, not VM budgets.
 - Decimal parsers require a complete ASCII token with at most one sign. Integers must fit int64; floats must be finite and cannot underflow a nonzero significand to zero. Subnormals and signed zero are preserved.
 - Catalog signatures are checked against the shipped schema fragment and `lmscript --dsl-signatures`. Shared compiler-built catalog vectors cover binary strings and host-policy errors.
+- `CollectionsCatalog` and `TestingCatalog` provide the shared collection/testing host functions. Collection objects are tracked per `Context` with a 65,536-object budget; testing output writes raw `VmString` bytes plus LF, and catalog policy failures use `RUN_HOST`.

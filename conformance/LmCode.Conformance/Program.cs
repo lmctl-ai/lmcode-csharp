@@ -16,21 +16,35 @@ sealed class Stub
     public readonly ObjRef RootRef;
     public readonly ObjRef VarRef;
     public readonly ObjRef XsRef;
+    public readonly MemoryStream Output = new();
+    private readonly bool collections;
 
-    public Stub()
+    public Stub(string schemaName)
     {
+        collections = schemaName == "collections.schema.json";
         TraceRef = Context.Insert("Trace", Trace);
         RootRef = Context.Insert("Thing", new Thing(0));
         VarRef = Context.Insert("Var", new Thing(0));
         XsRef = Context.Insert("IntList", new IntList());
         {
             StringCatalog.RegisterString(Registry);
+            MathCatalog.RegisterMath(Registry);
             Registry.Function("bytes", ["string"], "string", (_, args) => Value.Str(DecodeHex(args[0].AsStr())));
             Registry.Method("Trace", "hex", ["string"], "void", (_, _, a) => { Trace.Add("hex " + Convert.ToHexString(a[0].AsStr().Span).ToLowerInvariant()); return Value.None; });
+            if (collections)
+            {
+                CollectionsCatalog.RegisterCollections(Registry);
+                TestingCatalog.RegisterTesting(Registry, Output);
+                Registry.Function("printed", [], "string", (_, _) => Value.Str(new VmString(Output.ToArray())));
+            }
         }
-        Registry.Context("t", "Trace").Context("root", "Thing").Context("v", "Var").Context("xs", "IntList");
-        Registry.Method("IntList", "len", [], "int", (ctx, self, _) => Value.Int(ctx.Get<IntList>(self).Values.Length));
-        Registry.Method("IntList", "at", ["int"], "int", (ctx, self, a) => Value.Int(ctx.Get<IntList>(self).Values[checked((int)a[0].AsInt())]));
+        Registry.Context("t", "Trace");
+        if (!collections) Registry.Context("root", "Thing").Context("v", "Var").Context("xs", "IntList");
+        if (!collections)
+        {
+            Registry.Method("IntList", "len", [], "int", (ctx, self, _) => Value.Int(ctx.Get<IntList>(self).Values.Length));
+            Registry.Method("IntList", "at", ["int"], "int", (ctx, self, a) => Value.Int(ctx.Get<IntList>(self).Values[checked((int)a[0].AsInt())]));
+        }
         Registry.Method("Trace", "int", ["int"], "void", (_, _, a) => { Trace.Add("int " + a[0].AsInt()); return Value.None; });
         Registry.Method("Trace", "float", ["float"], "void", (_, _, a) => { Trace.Add("float " + Formatting.FormatG15(a[0].AsFloat())); return Value.None; });
         Registry.Method("Trace", "str", ["string"], "void", (_, _, a) => { Trace.Add("str " + a[0].AsStr()); return Value.None; });
@@ -83,7 +97,7 @@ sealed class Stub
         >= (byte)'a' and <= (byte)'f' => c - 'a' + 10,
         _ => throw new Error("RUN_HOST", "bytes: expected lowercase hexadecimal pairs")
     };
-    public void Bind() { Context.Set("t", TraceRef); Context.Set("root", RootRef); Context.Set("v", VarRef); Context.Set("xs", XsRef); }
+    public void Bind() { Context.Set("t", TraceRef); if (!collections) { Context.Set("root", RootRef); Context.Set("v", VarRef); Context.Set("xs", XsRef); } }
 }
 
 static class Runner
@@ -109,15 +123,16 @@ static class Runner
         var failed = 0;
         foreach (var name in names)
         {
-            var exp = File.ReadAllLines(Path.Combine(dir, name + ".expect")); var kind = exp[0]; var lines = exp.Skip(1).Select(Unescape).ToArray(); var stub = new Stub(); stub.Bind(); var loaded = false; var ran = false; var error = ""; var code = "";
+            var exp = File.ReadAllLines(Path.Combine(dir, name + ".expect")); var kind = exp[0]; var lines = exp.Skip(1).Select(Unescape).ToArray(); var schemaName = schemaByName.TryGetValue(name, out var selectedSchema) ? selectedSchema : "schema.json"; var stub = new Stub(schemaName); stub.Bind(); var loaded = false; var ran = false; var error = ""; var code = "";
             Error? caught = null;
-            try { var schema = schemaByName.TryGetValue(name, out var schemaName) ? schemaName : "schema.json"; var p = Program.Load(File.ReadAllBytes(Path.Combine(dir, name + ".dslb")), File.ReadAllBytes(Path.Combine(dir, schema)), stub.Registry); loaded = true; p.Run(stub.Context, stub.Registry); ran = true; }
+            try { var p = Program.Load(File.ReadAllBytes(Path.Combine(dir, name + ".dslb")), File.ReadAllBytes(Path.Combine(dir, schemaName)), stub.Registry); loaded = true; p.Run(stub.Context, stub.Registry); ran = true; }
             catch (Error e) { caught = e; error = e.Message; code = e.Code; }
             catch (Exception e) { error = e.Message; }
             var locationOk = false;
             if (lines.Length >= 3 && uint.TryParse(lines[1], out var expectedLine) && ushort.TryParse(lines[2], out var expectedColumn))
                 locationOk = (expectedLine == 0 ? caught is null || !caught.Line.HasValue : caught?.Line == expectedLine) && (expectedColumn == 0 ? caught is null || !caught.Column.HasValue : caught?.Column == expectedColumn);
-            var ok = kind == "trace" ? ran && stub.Trace.Count == lines.Length && stub.Trace.Zip(lines).All(x => Match(x.First, x.Second)) : kind == "runtime_error" ? loaded && !ran && error.Contains(lines[0], StringComparison.Ordinal) : kind == "runtime_error_at" ? loaded && !ran && lines.Length >= 4 && code == lines[0] && locationOk && error.Contains(lines[3], StringComparison.Ordinal) : kind == "load_error" && !loaded && error.Contains(lines[0], StringComparison.Ordinal);
+            var exactMessage = error.StartsWith("dsl line ", StringComparison.Ordinal) ? error[(error.IndexOf(": ", StringComparison.Ordinal) + 2)..] : error;
+            var ok = kind == "trace" ? ran && stub.Trace.Count == lines.Length && stub.Trace.Zip(lines).All(x => Match(x.First, x.Second)) : kind == "runtime_error" ? loaded && !ran && error.Contains(lines[0], StringComparison.Ordinal) : kind == "runtime_error_exact" ? loaded && !ran && lines.Length >= 2 && code == lines[0] && exactMessage == lines[1] : kind == "runtime_error_at" ? loaded && !ran && lines.Length >= 4 && code == lines[0] && locationOk && error.Contains(lines[3], StringComparison.Ordinal) : kind == "load_error" && !loaded && error.Contains(lines[0], StringComparison.Ordinal);
             Console.WriteLine((ok ? "ok - " : "FAIL - ") + name + " (" + kind + ")"); if (!ok) { failed++; Console.WriteLine("    error: " + error); }
         }
         Console.WriteLine($"{(failed == 0 ? "PASS" : "FAIL")} {names.Length - failed}/{names.Length} vectors"); return failed == 0 ? 0 : 1;
