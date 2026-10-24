@@ -53,6 +53,7 @@ sealed class Stub
         Registry.Function("bound", ["int"], "int", (_, a) => { Trace.Add("bound " + a[0].AsInt()); return Value.Int(a[0].AsInt()); });
         Registry.Function("half", ["float"], "float", (_, a) => Value.Float(a[0].AsFloat() / 2));
         Registry.Function("yes", [], "bool", (_, _) => { Trace.Add("yes"); return Value.Bool(true); });
+        Registry.Function("bad_int", [], "int", (_, _) => Value.Str(VmString.FromString("x")));
         Registry.Function("fail", ["string"], "void", (_, a) => throw new Error("RUN_HOST", a[0].AsStr().ToString()));
     }
 
