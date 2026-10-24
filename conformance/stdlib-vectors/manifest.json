@@ -1,0 +1,296 @@
+{
+  "format": "dsl-conformance/2",
+  "bytecode_version": 5,
+  "generated_by": "lmscript (one wrapper line preceding NAME.dsl)",
+  "schema": "schema.json",
+  "host": {
+    "description": "Register all functions from stdlib/string.schema-fragment.json. Context t is Trace: int records int N, float records float %.15g, bool records bool true|false, hex records hex SPACE followed by lowercase hexadecimal bytes (two digits per byte, no decoding). bytes(string) decodes an even-length ASCII hexadecimal fixture literal to raw bytes, without recording a trace. This helper intentionally supplies invalid UTF-8 and NUL without depending on source encoding or compiler literal escapes. Strings, offsets and lengths are bytes. Runtime error expectations use exact code/line/column and message substring, matching the core runner."
+  },
+  "vectors": [
+    {
+      "name": "starts-with",
+      "covers": "str_starts_with byte semantics and edge cases",
+      "schema": "schema.json",
+      "source": "starts-with.dsl",
+      "bytecode": "starts-with.dslb",
+      "mutated": false,
+      "expect": {
+        "trace": [
+          "bool true",
+          "bool true",
+          "bool false"
+        ]
+      }
+    },
+    {
+      "name": "ends-with",
+      "covers": "str_ends_with byte semantics and edge cases",
+      "schema": "schema.json",
+      "source": "ends-with.dsl",
+      "bytecode": "ends-with.dslb",
+      "mutated": false,
+      "expect": {
+        "trace": [
+          "bool true",
+          "bool true",
+          "bool false"
+        ]
+      }
+    },
+    {
+      "name": "contains",
+      "covers": "str_contains byte semantics and edge cases",
+      "schema": "schema.json",
+      "source": "contains.dsl",
+      "bytecode": "contains.dslb",
+      "mutated": false,
+      "expect": {
+        "trace": [
+          "bool true",
+          "bool true",
+          "bool false"
+        ]
+      }
+    },
+    {
+      "name": "lower",
+      "covers": "str_lower byte semantics and edge cases",
+      "schema": "schema.json",
+      "source": "lower.dsl",
+      "bytecode": "lower.dslb",
+      "mutated": false,
+      "expect": {
+        "trace": [
+          "hex 617a2dc3a9",
+          "hex 61ff007a"
+        ]
+      }
+    },
+    {
+      "name": "upper",
+      "covers": "str_upper byte semantics and edge cases",
+      "schema": "schema.json",
+      "source": "upper.dsl",
+      "bytecode": "upper.dslb",
+      "mutated": false,
+      "expect": {
+        "trace": [
+          "hex 415a2dc3a9",
+          "hex 41ff005a"
+        ]
+      }
+    },
+    {
+      "name": "substr",
+      "covers": "str_substr byte semantics and edge cases",
+      "schema": "schema.json",
+      "source": "substr.dsl",
+      "bytecode": "substr.dslb",
+      "mutated": false,
+      "expect": {
+        "trace": [
+          "hex a9",
+          "hex 616263",
+          "int 0",
+          "int 0",
+          "hex ff00"
+        ]
+      }
+    },
+    {
+      "name": "len",
+      "covers": "str_len byte semantics and edge cases",
+      "schema": "schema.json",
+      "source": "len.dsl",
+      "bytecode": "len.dslb",
+      "mutated": false,
+      "expect": {
+        "trace": [
+          "int 0",
+          "int 6",
+          "int 4"
+        ]
+      }
+    },
+    {
+      "name": "match",
+      "covers": "str_match byte semantics and edge cases",
+      "schema": "schema.json",
+      "source": "match.dsl",
+      "bytecode": "match.dslb",
+      "mutated": false,
+      "expect": {
+        "trace": [
+          "bool true",
+          "bool false",
+          "bool true",
+          "bool true",
+          "bool true",
+          "bool false",
+          "bool true"
+        ]
+      }
+    },
+    {
+      "name": "find",
+      "covers": "str_find byte semantics and edge cases",
+      "schema": "schema.json",
+      "source": "find.dsl",
+      "bytecode": "find.dslb",
+      "mutated": false,
+      "expect": {
+        "trace": [
+          "int 2",
+          "int 0",
+          "int -1",
+          "int 1"
+        ]
+      }
+    },
+    {
+      "name": "replace",
+      "covers": "str_replace byte semantics and edge cases",
+      "schema": "schema.json",
+      "source": "replace.dsl",
+      "bytecode": "replace.dslb",
+      "mutated": false,
+      "expect": {
+        "trace": [
+          "hex 626261",
+          "hex 6162",
+          "hex c3a900c3a9"
+        ]
+      }
+    },
+    {
+      "name": "trim",
+      "covers": "str_trim byte semantics and edge cases",
+      "schema": "schema.json",
+      "source": "trim.dsl",
+      "bytecode": "trim.dslb",
+      "mutated": false,
+      "expect": {
+        "trace": [
+          "hex 61",
+          "hex 6100",
+          "hex c3a9"
+        ]
+      }
+    },
+    {
+      "name": "repeat",
+      "covers": "str_repeat byte semantics and edge cases",
+      "schema": "schema.json",
+      "source": "repeat.dsl",
+      "bytecode": "repeat.dslb",
+      "mutated": false,
+      "expect": {
+        "trace": [
+          "hex ff00ff00",
+          "int 0",
+          "int 0"
+        ]
+      }
+    },
+    {
+      "name": "to-int",
+      "covers": "str_to_int byte semantics and edge cases",
+      "schema": "schema.json",
+      "source": "to-int.dsl",
+      "bytecode": "to-int.dslb",
+      "mutated": false,
+      "expect": {
+        "trace": [
+          "int 42",
+          "int -9223372036854775808",
+          "int 0",
+          "int 0",
+          "int 0"
+        ]
+      }
+    },
+    {
+      "name": "is-int",
+      "covers": "str_is_int byte semantics and edge cases",
+      "schema": "schema.json",
+      "source": "is-int.dsl",
+      "bytecode": "is-int.dslb",
+      "mutated": false,
+      "expect": {
+        "trace": [
+          "bool true",
+          "bool false",
+          "bool false",
+          "bool false",
+          "bool false"
+        ]
+      }
+    },
+    {
+      "name": "to-float",
+      "covers": "str_to_float byte semantics and edge cases",
+      "schema": "schema.json",
+      "source": "to-float.dsl",
+      "bytecode": "to-float.dslb",
+      "mutated": false,
+      "expect": {
+        "trace": [
+          "float 125",
+          "float -0",
+          "float 0",
+          "float 0",
+          "float 0"
+        ]
+      }
+    },
+    {
+      "name": "is-float",
+      "covers": "str_is_float byte semantics and edge cases",
+      "schema": "schema.json",
+      "source": "is-float.dsl",
+      "bytecode": "is-float.dslb",
+      "mutated": false,
+      "expect": {
+        "trace": [
+          "bool true",
+          "bool false",
+          "bool false",
+          "bool false",
+          "bool false"
+        ]
+      }
+    },
+    {
+      "name": "repeat-negative",
+      "covers": "catalog resource policy reports host failure",
+      "schema": "schema.json",
+      "source": "repeat-negative.dsl",
+      "bytecode": "repeat-negative.dslb",
+      "mutated": false,
+      "expect": {
+        "runtime_error_at": {
+          "code": "RUN_HOST",
+          "line": 2,
+          "column": 7,
+          "message": "str_repeat: count must be nonnegative and result at most 67108864 bytes"
+        }
+      }
+    },
+    {
+      "name": "repeat-limit",
+      "covers": "catalog resource policy reports host failure",
+      "schema": "schema.json",
+      "source": "repeat-limit.dsl",
+      "bytecode": "repeat-limit.dslb",
+      "mutated": false,
+      "expect": {
+        "runtime_error_at": {
+          "code": "RUN_HOST",
+          "line": 2,
+          "column": 7,
+          "message": "str_repeat: count must be nonnegative and result at most 67108864 bytes"
+        }
+      }
+    }
+  ]
+}

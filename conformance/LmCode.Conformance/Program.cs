@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using LmCode;
+using LmCode.Stdlib;
 
 sealed class Thing { public long Id; public Thing(long id) => Id = id; }
 sealed class IntList { public readonly long[] Values = [0, 1, 2, 3]; }
@@ -22,6 +23,11 @@ sealed class Stub
         RootRef = Context.Insert("Thing", new Thing(0));
         VarRef = Context.Insert("Var", new Thing(0));
         XsRef = Context.Insert("IntList", new IntList());
+        {
+            StringCatalog.RegisterString(Registry);
+            Registry.Function("bytes", ["string"], "string", (_, args) => Value.Str(DecodeHex(args[0].AsStr())));
+            Registry.Method("Trace", "hex", ["string"], "void", (_, _, a) => { Trace.Add("hex " + Convert.ToHexString(a[0].AsStr().Span).ToLowerInvariant()); return Value.None; });
+        }
         Registry.Context("t", "Trace").Context("root", "Thing").Context("v", "Var").Context("xs", "IntList");
         Registry.Method("IntList", "len", [], "int", (ctx, self, _) => Value.Int(ctx.Get<IntList>(self).Values.Length));
         Registry.Method("IntList", "at", ["int"], "int", (ctx, self, a) => Value.Int(ctx.Get<IntList>(self).Values[checked((int)a[0].AsInt())]));
@@ -58,6 +64,25 @@ sealed class Stub
     }
 
     private Value ThingValue(long id) => Value.Object("Thing", Context.Insert("Thing", new Thing(id)));
+    private static VmString DecodeHex(VmString encoded)
+    {
+        var text = encoded.Span;
+        if ((text.Length & 1) != 0) throw new Error("RUN_HOST", "bytes: expected lowercase hexadecimal pairs");
+        var bytes = new byte[text.Length / 2];
+        for (var i = 0; i < bytes.Length; i++)
+        {
+            var hi = HexDigit(text[2 * i]);
+            var lo = HexDigit(text[2 * i + 1]);
+            bytes[i] = (byte)((hi << 4) | lo);
+        }
+        return new VmString(bytes);
+    }
+    private static int HexDigit(byte c) => c switch
+    {
+        >= (byte)'0' and <= (byte)'9' => c - '0',
+        >= (byte)'a' and <= (byte)'f' => c - 'a' + 10,
+        _ => throw new Error("RUN_HOST", "bytes: expected lowercase hexadecimal pairs")
+    };
     public void Bind() { Context.Set("t", TraceRef); Context.Set("root", RootRef); Context.Set("v", VarRef); Context.Set("xs", XsRef); }
 }
 

@@ -14,3 +14,8 @@ The local native Greeter was executed with the compiled hello.dslb and returned
 `{"ok": true, "result": null}`. It dynamically links glibc and libm.
 CI has native runner/publish lanes for linux-x64, linux-arm64, osx-arm64, osx-x64,
 and win-x64. The schema literal in Greeter must match schema.json byte for byte.
+
+Run the optional string catalog fixtures with
+`dotnet run --project conformance/LmCode.Conformance -- conformance/stdlib-vectors`.
+`scripts/sync-vectors.sh` refreshes both core and catalog fixtures from the C++
+checkout and records their source commit. CI runs both on all five platforms.

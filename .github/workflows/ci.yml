@@ -44,7 +44,9 @@ jobs:
       - name: Unit tests
         run: dotnet test -c Release
       - name: Conformance
-        run: dotnet run -c Release --project conformance/LmCode.Conformance
+        run: dotnet run -c Release --project conformance/LmCode.Conformance -- conformance/vectors
+      - name: String catalog conformance
+        run: dotnet run -c Release --project conformance/LmCode.Conformance -- conformance/stdlib-vectors
       - name: NativeAOT publish
         run: dotnet publish examples/Greeter -r ${{ matrix.rid }} -c Release -p:PublishAot=true -p:IlcTreatWarningsAsErrors=true -o artifacts/greeter
       - name: Run native executable
