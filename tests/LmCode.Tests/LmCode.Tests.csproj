@@ -12,6 +12,9 @@
   <ItemGroup>
     <None Update="Fixtures/**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="../../stdlib/string.schema-fragment.json" Link="Fixtures/string.schema-fragment.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../../stdlib/math.schema-fragment.json" Link="Fixtures/math.schema-fragment.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../../stdlib/collections.schema-fragment.json" Link="Fixtures/collections.schema-fragment.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../../stdlib/testing.schema-fragment.json" Link="Fixtures/testing.schema-fragment.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
   <Target Name="RunConsoleTests" AfterTargets="VSTest" DependsOnTargets="Build">
     <Exec Command="dotnet &quot;$(TargetPath)&quot;" />
