@@ -6,7 +6,23 @@ namespace LmCode.Stdlib;
 public sealed class StrList { internal readonly List<VmString> Items = []; public IReadOnlyList<VmString> Values => Items; }
 public sealed class IntList { internal readonly List<long> Items = []; public IReadOnlyList<long> Values => Items; }
 public sealed class FloatList { internal readonly List<double> Items = []; public IReadOnlyList<double> Values => Items; }
-public sealed class StrMap { internal readonly List<(VmString Key, VmString Value)> Items = []; public IReadOnlyList<(VmString Key, VmString Value)> Entries => Items; }
+public sealed class StrMap
+{
+    internal readonly List<(VmString Key, VmString Value)> Items = [];
+    internal readonly Dictionary<VmString, int> Positions = [];
+    internal readonly HashSet<int> Deleted = [];
+    internal int Live;
+    internal bool Dirty;
+    public IReadOnlyList<(VmString Key, VmString Value)> Entries { get { Compact(); return Items; } }
+    internal void Compact()
+    {
+        if (!Dirty) return;
+        var items = new List<(VmString Key, VmString Value)>(Live);
+        var positions = new Dictionary<VmString, int>(Live);
+        for (int i = 0; i < Items.Count; ++i) if (!Deleted.Contains(i)) { positions[Items[i].Key] = items.Count; items.Add(Items[i]); }
+        Items.Clear(); Items.AddRange(items); Positions.Clear(); foreach (var pair in positions) Positions[pair.Key] = pair.Value; Deleted.Clear(); Dirty = false;
+    }
+}
 
 /// <summary>Optional byte-oriented collection host functions.</summary>
 public static class CollectionsCatalog
@@ -33,8 +49,8 @@ public static class CollectionsCatalog
         RegisterList<IntList, long>(r, "IntList", "int", static x => x.Items, static v => v.AsInt(), Value.Int, static (a, b) => a == b);
         RegisterList<FloatList, double>(r, "FloatList", "float", static x => x.Items, static v => v.AsFloat(), Value.Float, static (a, b) => a == b);
 
-        r.Method("StrMap", "len", [], "int", static (c, self, _) => Value.Int(c.Get<StrMap>(self).Items.Count));
-        r.Method("StrMap", "has", ["string"], "bool", static (c, self, a) => Find(c.Get<StrMap>(self), a[0].AsStr()) >= 0 ? Value.Bool(true) : Value.Bool(false));
+        r.Method("StrMap", "len", [], "int", static (c, self, _) => Value.Int(c.Get<StrMap>(self).Live));
+        r.Method("StrMap", "has", ["string"], "bool", static (c, self, a) => c.Get<StrMap>(self).Positions.ContainsKey(a[0].AsStr()) ? Value.Bool(true) : Value.Bool(false));
         r.Method("StrMap", "get", ["string"], "string", static (c, self, a) =>
         {
             var map = c.Get<StrMap>(self); int i = Find(map, a[0].AsStr());
@@ -49,19 +65,19 @@ public static class CollectionsCatalog
         r.Method("StrMap", "set", ["string", "string"], "StrMap", static (c, self, a) =>
         {
             var map = c.Get<StrMap>(self); int i = Find(map, a[0].AsStr());
-            if (i < 0) map.Items.Add((a[0].AsStr(), a[1].AsStr())); else map.Items[i] = (map.Items[i].Key, a[1].AsStr());
+            if (i < 0) { map.Positions[a[0].AsStr()] = map.Items.Count; map.Items.Add((a[0].AsStr(), a[1].AsStr())); ++map.Live; } else map.Items[i] = (map.Items[i].Key, a[1].AsStr());
             return Value.Object("StrMap", self);
         });
         r.Method("StrMap", "key_at", ["int"], "string", static (c, self, a) =>
         {
-            var map = c.Get<StrMap>(self); return Value.Str(map.Items[Index(a[0].AsInt(), map.Items.Count, "StrMap.key_at")].Key);
+            var map = c.Get<StrMap>(self); map.Compact(); return Value.Str(map.Items[Index(a[0].AsInt(), map.Items.Count, "StrMap.key_at")].Key);
         });
         r.Method("StrMap", "remove", ["string"], "bool", static (c, self, a) =>
         {
             var map = c.Get<StrMap>(self); int i = Find(map, a[0].AsStr());
-            if (i < 0) return Value.Bool(false); map.Items.RemoveAt(i); return Value.Bool(true);
+            if (i < 0) return Value.Bool(false); map.Positions.Remove(a[0].AsStr()); map.Deleted.Add(i); --map.Live; map.Dirty = true; return Value.Bool(true);
         });
-        r.Method("StrMap", "clear", [], "StrMap", static (c, self, _) => { c.Get<StrMap>(self).Items.Clear(); return Value.Object("StrMap", self); });
+        r.Method("StrMap", "clear", [], "StrMap", static (c, self, _) => { var map = c.Get<StrMap>(self); map.Items.Clear(); map.Positions.Clear(); map.Deleted.Clear(); map.Live = 0; map.Dirty = false; return Value.Object("StrMap", self); });
 
         r.Function("str_list", [], "StrList", static (c, _) => Value.Object("StrList", Allocate(c, "StrList", new StrList())));
         r.Function("int_list", [], "IntList", static (c, _) => Value.Object("IntList", Allocate(c, "IntList", new IntList())));
@@ -107,14 +123,14 @@ public static class CollectionsCatalog
     }
     private static int Find(StrMap map, VmString key)
     {
-        for (int i = 0; i < map.Items.Count; ++i) if (map.Items[i].Key.Equals(key)) return i;
-        return -1;
+        return map.Positions.GetValueOrDefault(key, -1);
     }
     private static VmString Join(List<VmString> items, VmString separator)
     {
-        var bytes = new List<byte>();
-        for (int i = 0; i < items.Count; ++i) { if (i != 0) bytes.AddRange(separator.Span.ToArray()); bytes.AddRange(items[i].Span.ToArray()); }
-        return new VmString(bytes.ToArray());
+        int total = 0; for (int i = 0; i < items.Count; ++i) total = checked(total + items[i].Length + (i == 0 ? 0 : separator.Length));
+        var bytes = new byte[total]; int at = 0;
+        for (int i = 0; i < items.Count; ++i) { if (i != 0) { separator.Span.CopyTo(bytes.AsSpan(at)); at += separator.Length; } items[i].Span.CopyTo(bytes.AsSpan(at)); at += items[i].Length; }
+        return new VmString(bytes);
     }
     private static ObjRef Allocate<T>(Context context, string type, T value) where T : class
     {

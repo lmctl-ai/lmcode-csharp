@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
@@ -140,6 +141,7 @@ public static class FileCatalog
     [DllImport("libc", SetLastError = true, EntryPoint = "open")] private static extern int MacOpenArm64(byte[] path, int flags, nint pad2, nint pad3, nint pad4, nint pad5, nint pad6, nint pad7, nint mode);
     [DllImport("libc", SetLastError = true, EntryPoint = "read")] private static extern nint UnixRead(int fd, byte[] buffer, nuint count);
     [DllImport("libc", SetLastError = true, EntryPoint = "write")] private static extern nint UnixWriteRaw(int fd, byte[] buffer, nuint count);
+    [DllImport("libc", SetLastError = true, EntryPoint = "write")] private static extern nint UnixWriteRaw(int fd, IntPtr buffer, nuint count);
     [DllImport("libc", SetLastError = true, EntryPoint = "fsync")] private static extern int UnixFsync(int fd);
     [DllImport("libc", SetLastError = true, EntryPoint = "close")] private static extern int UnixClose(int fd);
     [DllImport("kernel32.dll", SetLastError = true)] private static extern uint GetFileType(IntPtr handle);
@@ -149,14 +151,14 @@ public static class FileCatalog
         if (UnixStat(NativePath(path), stat) != 0) throw Failure(function, new VmString(path), Errno(Marshal.GetLastPInvokeError()));
         if (!StatRegular(stat)) throw Failure(function, new VmString(path), "invalid argument");
         int fd = NativeOpen(NativePath(path), 0, 0); if (fd < 0) throw Failure(function, new VmString(path), Errno(Marshal.GetLastPInvokeError()));
-        try { var result = new List<byte>(); var buffer = new byte[65536]; while (true) { nint n = UnixRead(fd, buffer, (nuint)buffer.Length); int error = Marshal.GetLastPInvokeError(); if (n == 0) break; if (n < 0 && error == 4) continue; if (n < 0) throw Failure(function, new VmString(path), Errno(error)); result.AddRange(buffer.AsSpan(0, (int)n).ToArray()); } return result.ToArray(); }
+        try { using var result = new MemoryStream(); var buffer = new byte[65536]; while (true) { nint n = UnixRead(fd, buffer, (nuint)buffer.Length); int error = Marshal.GetLastPInvokeError(); if (n == 0) break; if (n < 0 && error == 4) continue; if (n < 0) throw Failure(function, new VmString(path), Errno(error)); result.Write(buffer, 0, (int)n); } return result.ToArray(); }
         finally { if (UnixClose(fd) != 0) throw Failure(function, new VmString(path), Errno(Marshal.GetLastPInvokeError())); }
     }
     private static void UnixWrite(string function, ReadOnlySpan<byte> path, ReadOnlySpan<byte> bytes, bool append)
     {
         byte[] native = NativePath(path); byte[] stat = new byte[512]; int statResult = UnixStat(native, stat); if (statResult == 0 && !StatRegular(stat)) throw Failure(function, new VmString(path), "invalid argument"); if (statResult != 0 && Marshal.GetLastPInvokeError() is not (2 or 20)) throw Failure(function, new VmString(path), Errno(Marshal.GetLastPInvokeError()));
         int flags = 1 | (OperatingSystem.IsMacOS() ? 0x200 : 64) | (append ? (OperatingSystem.IsMacOS() ? 0x8 : 1024) : (OperatingSystem.IsMacOS() ? 0x400 : 512)); int fd = NativeOpen(native, flags, 438); if (fd < 0) throw Failure(function, new VmString(path), Errno(Marshal.GetLastPInvokeError()));
-        try { byte[] data = bytes.ToArray(); int at = 0; while (at < data.Length) { nint n = UnixWriteRaw(fd, data.AsSpan(at).ToArray(), (nuint)(data.Length - at)); int error = Marshal.GetLastPInvokeError(); if (n < 0 && error == 4) continue; if (n <= 0) throw Failure(function, new VmString(path), Errno(n == 0 ? 5 : error)); at += (int)n; } int sync; do { sync = UnixFsync(fd); } while (sync != 0 && Marshal.GetLastPInvokeError() == 4); if (sync != 0) throw Failure(function, new VmString(path), Errno(Marshal.GetLastPInvokeError())); }
+        try { byte[] data = bytes.ToArray(); var pinned = GCHandle.Alloc(data, GCHandleType.Pinned); try { int at = 0; while (at < data.Length) { nint n = UnixWriteRaw(fd, pinned.AddrOfPinnedObject() + at, (nuint)(data.Length - at)); int error = Marshal.GetLastPInvokeError(); if (n < 0 && error == 4) continue; if (n <= 0) throw Failure(function, new VmString(path), Errno(n == 0 ? 5 : error)); at += (int)n; } } finally { pinned.Free(); } int sync; do { sync = UnixFsync(fd); } while (sync != 0 && Marshal.GetLastPInvokeError() == 4); if (sync != 0) throw Failure(function, new VmString(path), Errno(Marshal.GetLastPInvokeError())); }
         finally { if (UnixClose(fd) != 0) throw Failure(function, new VmString(path), Errno(Marshal.GetLastPInvokeError())); }
     }
     private static byte[] NativePath(ReadOnlySpan<byte> path) { byte[] result = new byte[path.Length + 1]; path.CopyTo(result); return result; }

@@ -22,6 +22,9 @@ static class FileCatalogTests
             Require(seen.Count == 2 && seen[0].Span.SequenceEqual(new byte[] { 97, 0, 195, 191 }) && seen[1].Span.SequenceEqual(new byte[] { 97, 0, 195, 191, 97, 0, 195, 191 }), "raw file bytes");
             Require(ints.SequenceEqual([1]), "file line count");
             int checks = 3;
+            string largePath = Path.Combine(dir, "large.bin"); string large = new('x', 100 * 1024 * 1024); var perf = System.Diagnostics.Stopwatch.StartNew();
+            RunFile("file_write", largePath, large); var writeTime = perf.Elapsed; perf.Restart(); var largeValue = RunFile("file_read", largePath, ""); var readTime = perf.Elapsed;
+            Require(largeValue.AsStr().Length == large.Length, "100MB file round trip"); Console.WriteLine($"file perf: write={writeTime} read={readTime}"); ++checks;
             if (!OperatingSystem.IsWindows())
             {
                 const UnixFileMode owner = UnixFileMode.UserRead | UnixFileMode.UserWrite;
@@ -54,14 +57,14 @@ static class FileCatalogTests
         }
         return 5;
     }
-    private static Value RunFile(string function, string path)
+    private static Value RunFile(string function, string path, string payload = "payload")
     {
         bool writes = function is "file_write" or "file_append";
         string returns = writes ? "void" : function == "file_exists" ? "bool" : function == "file_lines" ? "StrList" : "string";
         string signature = $"fn {function}(string{(writes ? ", string" : "")}) -> {returns}";
         var registry = new Registry(); Value result = Value.None;
         registry.Function("capture_file", [returns], "void", (_, args) => { result = args[0]; return Value.None; });
-        string[] constants = [signature, $"fn capture_file({returns}) -> void", path, "payload"];
+        string[] constants = [signature, $"fn capture_file({returns}) -> void", path, payload];
         var code = new List<byte>(); PushString(code, 2); if (writes) PushString(code, 3);
         Call(code, 0, writes ? 2 : 1); if (!writes) Call(code, 1, 1); code.Add(0x11);
         Program.Load(Image(constants, code.ToArray(), writes ? 1 : 2), [], registry).Run(new Context(), registry);
