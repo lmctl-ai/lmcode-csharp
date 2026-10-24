@@ -123,8 +123,9 @@ public static class FileCatalog
     {
         int offset = OperatingSystem.IsMacOS() ? 4 : (RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? 16 : 24); uint mode = BitConverter.ToUInt32(stat, offset); return (mode & 0xF000) == 0x8000;
     }
-    private static int UnixStat(byte[] path, byte[] buffer) => OperatingSystem.IsMacOS() ? MacStat(path, buffer) : LinuxStat(path, buffer);
+    private static int UnixStat(byte[] path, byte[] buffer) => OperatingSystem.IsMacOS() ? (RuntimeInformation.ProcessArchitecture == Architecture.X64 ? MacStat64(path, buffer) : MacStatNative(path, buffer)) : LinuxStat(path, buffer);
     [DllImport("libc", SetLastError = true, EntryPoint = "stat")] private static extern int LinuxStat(byte[] path, byte[] buffer);
-    [DllImport("libc", SetLastError = true, EntryPoint = "stat$INODE64")] private static extern int MacStat(byte[] path, byte[] buffer);
+    [DllImport("libc", SetLastError = true, EntryPoint = "stat$INODE64")] private static extern int MacStat64(byte[] path, byte[] buffer);
+    [DllImport("libc", SetLastError = true, EntryPoint = "stat")] private static extern int MacStatNative(byte[] path, byte[] buffer);
     [DllImport("libc", SetLastError = true, EntryPoint = "fstat")] private static extern int Fstat(int fd, byte[] buffer);
 }
