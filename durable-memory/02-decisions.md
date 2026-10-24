@@ -20,3 +20,4 @@
 - Errors retain the original source location when nested callbacks rethrow them.
 - Library package references are absent. IsAotCompatible enables trim/AOT analyzers;
   Greeter publishes with AOT and warnings as errors.
+- Optional `LmCode.Stdlib.StringCatalog` registers only `str_len(string) -> int`; lengths count raw bytes including NUL and invalid UTF-8, with schema/compiler parity and compiled-fixture tests.

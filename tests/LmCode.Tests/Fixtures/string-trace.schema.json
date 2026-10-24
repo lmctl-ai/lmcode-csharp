@@ -1,0 +1,10 @@
+{
+  "dsl.schema": 2,
+  "name": "lmcode_csharp_string_catalog_trace",
+  "types": {},
+  "functions": {
+    "str_len": [{ "params": ["string"], "returns": "int" }],
+    "capture": [{ "params": ["int"], "returns": "void" }]
+  },
+  "context": {}
+}

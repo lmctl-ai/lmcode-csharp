@@ -1,3 +1,6 @@
 # Precompiled vectors bind to the exact schema bytes, including line endings.
 conformance/vectors/*.json text eol=lf
 *.dslb binary
+
+# These fixture bytes are SHA-256 bound to the committed bytecode.
+tests/LmCode.Tests/Fixtures/*.json text eol=lf

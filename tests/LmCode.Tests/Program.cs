@@ -2,8 +2,9 @@ using LmCode;
 
 static class Tests
 {
-    static int Main()
+    static int Main(string[] args)
     {
+        if (args is ["--string-catalog"]) { StringCatalogTests.Run(); return 0; }
         var checks = new (string Name, Func<bool> Check)[]
         {
             ("VmString preserves raw bytes", RawBytes),
@@ -19,7 +20,8 @@ static class Tests
             if (!check()) return Fail(name);
         if (!RuntimeTests.Run()) return Fail("runtime tests");
         int verified = VerifierTests.Run();
-        Console.WriteLine($"PASS unit tests ({checks.Length + 5 + verified})"); return 0;
+        int catalog = StringCatalogTests.Run();
+        Console.WriteLine($"PASS unit tests ({checks.Length + 5 + verified + catalog})"); return 0;
     }
 
     static bool RawBytes()
