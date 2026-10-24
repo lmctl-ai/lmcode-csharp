@@ -15,8 +15,8 @@
 - Float formatting uses 15 significant digits, lowercase signed exponents with at
   least two digits, and explicit nan/inf/-0. Pinned formatting vectors are exact.
 - Structural range-slot ownership follows C++. Rust rejects every hidden-local
-  store while C++ rejects slots owned by range loops. Rust also rejects invalid
-  UTF-8 constants through its String representation; C++ preserves bytes.
+  store while C++ rejects slots owned by range loops. C# preserves invalid UTF-8
+  value constants as raw `VmString` bytes; host-facing text conversion remains explicit.
 - Errors retain the original source location when nested callbacks rethrow them.
 - Library package references are absent. IsAotCompatible enables trim/AOT analyzers;
   Greeter publishes with AOT and warnings as errors.
