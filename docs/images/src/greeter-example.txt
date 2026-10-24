@@ -1,0 +1,3 @@
+$ dotnet run --project examples/Greeter -- --dsl examples/Greeter/hello.dslb
+Hello, world
+{"ok": true, "result": null}

@@ -1,0 +1,10 @@
+$ dotnet test
+  PASS string compiler/registry signature parity
+  PASS string catalog (96 checks): byte semantics, schema/compiler parity, compiled trace
+  PASS collections/testing catalog tests
+  PASS math compiler/registry signature parity
+  PASS collections compiler/registry signature parity
+  PASS testing compiler/registry signature parity
+  PASS math catalog tests
+  PASS standard registry tests
+  PASS unit tests (136)
