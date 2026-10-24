@@ -25,6 +25,9 @@ static class StandardRegistryTests
         host.CheckSchemaSignatures(["context ctx: Thing", "fn host() -> int"]);
         Require(host.MatchesSchemaSignatures(["context ctx: Thing", "fn host() -> int"]), "schema match alias");
         Require(host.HostSignatures().SequenceEqual(["context ctx: Thing", "fn host() -> int"]), "host-only signatures");
+        var testing = new Registry(false); TestingCatalog.RegisterTesting(testing, new MemoryStream());
+        Require(testing.StdSignatures().Length == 0 && testing.HostSignatures().SequenceEqual(["fn assert_close(float, float, float) -> void", "fn print(string) -> void"]), "optional testing host signatures");
+        Require(!testing.MatchesSchemaSignatures([]) && testing.MatchesSchemaSignatures(["fn assert_close(float, float, float) -> void", "fn print(string) -> void"]), "optional testing schema check");
         OptOutStandardNames();
         RunStorageReuse();
         LifecycleGuards();
