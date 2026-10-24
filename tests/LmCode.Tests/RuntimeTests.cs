@@ -11,6 +11,7 @@ static class RuntimeTests
         IntegerEdges();
         DuplicateBinding();
         SchemaMismatch();
+        OrdinaryVmTypeError();
         LocatedHostError();
         return true;
     }
@@ -62,6 +63,13 @@ static class RuntimeTests
         try { Program.Load(Image([0x11], [], []), [1], new Registry()); }
         catch (Error e) when (e.Code == "LOAD_SCHEMA_MISMATCH" && e.Message.Contains("schema mismatch", StringComparison.Ordinal)) { return; }
         throw new Exception("schema mismatch accepted");
+    }
+    private static void OrdinaryVmTypeError()
+    {
+        var p = Program.Load(Image([3, 1, 0x1b, 0x11], [], []), [], new Registry());
+        try { p.Run(new Context(), new Registry()); }
+        catch (Error e) when (e.Code == "RUN_ERROR" && e.Message == "int negation applied to bool") { return; }
+        throw new Exception("ordinary VM type error lost its RUN_ERROR code");
     }
     private static void LocatedHostError()
     {
