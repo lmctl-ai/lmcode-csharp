@@ -20,4 +20,7 @@
 - Errors retain the original source location when nested callbacks rethrow them.
 - Library package references are absent. IsAotCompatible enables trim/AOT analyzers;
   Greeter publishes with AOT and warnings as errors.
-- Optional `LmCode.Stdlib.StringCatalog` registers only `str_len(string) -> int`; lengths count raw bytes including NUL and invalid UTF-8, with schema/compiler parity and compiled-fixture tests.
+- Optional `LmCode.Stdlib.StringCatalog` registers the full 16-function C++ string catalog. All operations use `VmString` byte spans, preserve invalid UTF-8/NUL and use byte offsets. Case conversion is ASCII-only; trimming removes space and bytes 0x09..0x0d.
+- Catalog repeat/replace output limits are 67108864 bytes; glob matching counts iterations, class entries and trailing stars toward 2^27 work units. Limits raise `RUN_HOST` with the same messages as C++ and are host policy, not VM budgets.
+- Decimal parsers require a complete ASCII token with at most one sign. Integers must fit int64; floats must be finite and cannot underflow a nonzero significand to zero. Subnormals and signed zero are preserved.
+- Catalog signatures are checked against the shipped schema fragment and `lmscript --dsl-signatures`. Shared compiler-built catalog vectors cover binary strings and host-policy errors.
