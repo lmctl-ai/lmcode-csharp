@@ -18,7 +18,7 @@ public sealed class Registry
         string fullName = type is null ? name : type + "." + name;
         string sig = $"({string.Join(", ", parameters)}) -> {returns}";
         string canonical = $"{(type is null ? "fn" : "method")} {fullName}{sig}";
-        if (bindings.ContainsKey(canonical) && registeringBuiltins) return this;
+        if (bindings.ContainsKey(canonical) && registeringBuiltins && builtins.Contains(canonical)) return this;
         foreach (var entry in bindings.Values)
             if (entry.Name == name && entry.TypeName == type && entry.Parameters.AsSpan().SequenceEqual(parameters))
             {
@@ -45,7 +45,7 @@ public sealed class Registry
     }
     public string[] HostSignatures()
     {
-        var result = bindings.Keys.Where(x => !Stdlib.StandardCatalog.IsStandard(x)).ToList();
+        var result = bindings.Keys.Where(x => !builtins.Contains(x)).ToList();
         result.AddRange(contexts.Select(x => $"context {x.Key}: {x.Value}"));
         result.Sort(StringComparer.Ordinal); return result.ToArray();
     }
@@ -69,11 +69,13 @@ public sealed class Registry
     internal void MarkDefaultCollections() => defaultCollections = true;
     internal void EnterRun(Context context)
     {
+        if (!defaultCollections) return;
         if (Interlocked.CompareExchange(ref activeRuns, 1, 0) != 0) throw Error.Host("registry run is already active");
         if (defaultCollections) Stdlib.CollectionsCatalog.BeginRun(context);
     }
     internal void ExitRun(Context context)
     {
+        if (!defaultCollections) return;
         if (defaultCollections) Stdlib.CollectionsCatalog.EndRun(context);
         Volatile.Write(ref activeRuns, 0);
     }

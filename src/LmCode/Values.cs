@@ -51,6 +51,7 @@ public sealed class Context
     private readonly List<object?> objects = [];
     private readonly List<string> types = [];
     private readonly Dictionary<string, ObjRef> names = new(StringComparer.Ordinal);
+    private readonly Stack<int> freeCollectionSlots = new();
     public ObjRef Insert(string type, object value) { var r = new ObjRef(objects.Count); objects.Add(value); types.Add(type); return r; }
     public void Set(string name, ObjRef obj) => names[name] = obj;
     public ObjRef SetObject(string name, string type, object value) { var r = Insert(type, value); Set(name, r); return r; }
@@ -59,5 +60,14 @@ public sealed class Context
     public T Get<T>(ObjRef obj) => obj.Index >= 0 && obj.Index < objects.Count && objects[obj.Index] is T value ? value : throw Error.Host($"context object #{obj.Index} has the wrong host type or was taken");
     public T Take<T>(ObjRef obj) { T value = Get<T>(obj); objects[obj.Index] = null; return value; }
     public int Count => objects.Count;
-    internal void Remove(ObjRef reference) { if ((uint)reference.Index < (uint)objects.Count) objects[reference.Index] = null; }
+    internal ObjRef InsertCollection(string type, object value)
+    {
+        if (!freeCollectionSlots.TryPop(out int index)) return Insert(type, value);
+        objects[index] = value; types[index] = type; return new ObjRef(index);
+    }
+    internal void ReleaseCollection(ObjRef reference)
+    {
+        objects[reference.Index] = null;
+        freeCollectionSlots.Push(reference.Index);
+    }
 }

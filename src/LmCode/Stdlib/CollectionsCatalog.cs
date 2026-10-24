@@ -120,11 +120,11 @@ public static class CollectionsCatalog
     {
         State state = States.GetOrCreateValue(context);
         if (state.Count >= MaxObjects) throw Error.Host($"{type} object limit exceeded (65536)");
-        ++state.Count; ObjRef reference = context.Insert(type, value); state.References.Add(reference); return reference;
+        ++state.Count; ObjRef reference = context.InsertCollection(type, value); state.References.Add(reference); return reference;
     }
     internal static void BeginRun(Context context)
     {
-        if (States.TryGetValue(context, out State? state)) { foreach (ObjRef reference in state.References) context.Remove(reference); state.References.Clear(); state.Count = 0; }
+        if (States.TryGetValue(context, out State? state)) { foreach (ObjRef reference in state.References) context.ReleaseCollection(reference); state.References.Clear(); state.Count = 0; }
     }
     internal static void EndRun(Context context) => BeginRun(context);
 }
