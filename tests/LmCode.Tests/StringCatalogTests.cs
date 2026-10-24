@@ -109,26 +109,27 @@ static class StringCatalogTests
         return signatures.ToArray();
     }
 
-    private static void CompilerParity(string[] signatures)
+    internal static void CompilerParity(string[] signatures, string? schemaPath = null, string catalog = "string")
     {
+        schemaPath ??= Fixture("string.schema.json");
         string? requested = Environment.GetEnvironmentVariable("LMSCRIPT_BIN");
         string? compiler = FindCompiler(string.IsNullOrEmpty(requested) ? "lmscript" : requested);
         if (compiler is null)
         {
             if (!string.IsNullOrEmpty(requested)) throw new Exception($"LMSCRIPT_BIN not found: {requested}");
-            Console.WriteLine("SKIP string compiler parity: lmscript is absent from PATH");
+            Console.WriteLine($"SKIP {catalog} compiler parity: lmscript is absent from PATH");
             return;
         }
         var start = new ProcessStartInfo(compiler) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
         if (OperatingSystem.IsWindows() && (compiler.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase) || compiler.EndsWith(".bat", StringComparison.OrdinalIgnoreCase)))
         {
             start.FileName = "cmd.exe";
-            start.Arguments = $"/d /s /c \"\"{compiler}\" --dsl-signatures \"{Fixture("string.schema.json")}\"\"";
+            start.Arguments = $"/d /s /c \"\"{compiler}\" --dsl-signatures \"{schemaPath}\"\"";
         }
         else
         {
             start.ArgumentList.Add("--dsl-signatures");
-            start.ArgumentList.Add(Fixture("string.schema.json"));
+            start.ArgumentList.Add(schemaPath);
         }
         using var process = Process.Start(start) ?? throw new Exception("cannot start lmscript");
         var stdout = process.StandardOutput.ReadToEndAsync();
@@ -137,7 +138,7 @@ static class StringCatalogTests
         Require(process.ExitCode == 0, "lmscript --dsl-signatures failed: " + stderr.GetAwaiter().GetResult());
         string expected = string.Join('\n', signatures) + "\n";
         Require(stdout.GetAwaiter().GetResult().Replace("\r\n", "\n", StringComparison.Ordinal) == expected, "compiler signatures differ from registry");
-        Console.WriteLine("PASS string compiler/registry signature parity");
+        Console.WriteLine($"PASS {catalog} compiler/registry signature parity");
     }
 
     private static string? FindCompiler(string name)

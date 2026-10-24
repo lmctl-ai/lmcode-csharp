@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using LmCode;
@@ -44,28 +43,13 @@ static class MathCatalogTests
             foreach (var overload in function.Value.EnumerateArray()) expected.Add($"fn {function.Name}({string.Join(", ", overload.GetProperty("params").EnumerateArray().Select(x => x.GetString()))}) -> {overload.GetProperty("returns").GetString()}");
         expected.Sort(StringComparer.Ordinal);
         Require(registry.Signatures().SequenceEqual(expected), name + " fragment/registry parity");
-        string? compiler = FindCompiler();
-        if (compiler is null) { Console.WriteLine($"SKIP {name} compiler parity: lmscript is absent from PATH"); return; }
         var fragmentNode = JsonNode.Parse(File.ReadAllText(fragmentPath))!.AsObject();
         var schema = new JsonObject { ["dsl.schema"] = 2, ["name"] = name, ["types"] = fragmentNode["types"]?.DeepClone() ?? new JsonObject(), ["functions"] = fragmentNode["functions"]?.DeepClone() ?? new JsonObject(), ["context"] = new JsonObject() };
         string schemaPath = Path.Combine(Path.GetTempPath(), $"lmcode-{name}-{Guid.NewGuid():N}.json"); File.WriteAllText(schemaPath, schema.ToJsonString());
         try
         {
-            var start = new ProcessStartInfo(compiler) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
-            start.ArgumentList.Add("--dsl-signatures"); start.ArgumentList.Add(schemaPath);
-            using var process = Process.Start(start) ?? throw new Exception("cannot start lmscript");
-            string stdout = process.StandardOutput.ReadToEnd(); string stderr = process.StandardError.ReadToEnd(); process.WaitForExit();
-            Require(process.ExitCode == 0, name + " compiler parity failed: " + stderr);
-            Require(stdout.Replace("\r\n", "\n", StringComparison.Ordinal) == string.Join('\n', expected) + "\n", name + " compiler signatures differ");
+            StringCatalogTests.CompilerParity(registry.Signatures(), schemaPath, name);
         }
         finally { File.Delete(schemaPath); }
-    }
-    private static string? FindCompiler()
-    {
-        string? requested = Environment.GetEnvironmentVariable("LMSCRIPT_BIN"); string name = string.IsNullOrEmpty(requested) ? "lmscript" : requested;
-        if (Path.IsPathRooted(name) || name.Contains(Path.DirectorySeparatorChar) || name.Contains(Path.AltDirectorySeparatorChar)) return File.Exists(name) ? name : null;
-        foreach (string directory in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator)) { string path = Path.Combine(directory, name); if (File.Exists(path)) return path; }
-        if (!string.IsNullOrEmpty(requested)) throw new Exception($"LMSCRIPT_BIN not found: {requested}");
-        return null;
     }
 }
