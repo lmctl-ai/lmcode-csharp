@@ -70,7 +70,9 @@ public static class CollectionsCatalog
         });
         r.Method("StrMap", "key_at", ["int"], "string", static (c, self, a) =>
         {
-            var map = c.Get<StrMap>(self); map.Compact(); return Value.Str(map.Items[Index(a[0].AsInt(), map.Items.Count, "StrMap.key_at")].Key);
+            var map = c.Get<StrMap>(self); long wanted = a[0].AsInt(); if (wanted < 0 || wanted >= map.Live) throw Error.Host($"StrMap.key_at: index out of range: {wanted.ToString(CultureInfo.InvariantCulture)}");
+            long seen = 0; for (int i = 0; i < map.Items.Count; ++i) { if (map.Deleted.Contains(i)) continue; if (seen++ == wanted) return Value.Str(map.Items[i].Key); }
+            throw Error.Host($"StrMap.key_at: index out of range: {wanted.ToString(CultureInfo.InvariantCulture)}");
         });
         r.Method("StrMap", "remove", ["string"], "bool", static (c, self, a) =>
         {
