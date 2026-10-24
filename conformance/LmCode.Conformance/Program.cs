@@ -17,31 +17,28 @@ sealed class Stub
     public readonly ObjRef VarRef;
     public readonly ObjRef XsRef;
     public readonly MemoryStream Output = new();
-    private readonly bool collections;
+    private readonly bool standard;
 
-    public Stub(bool collectionCatalog)
+    public Stub(bool standardCatalog)
     {
-        collections = collectionCatalog;
-        Registry = new Registry(collectionCatalog);
+        standard = standardCatalog;
+        Registry = new Registry(standardCatalog);
         TraceRef = Context.Insert("Trace", Trace);
         RootRef = Context.Insert("Thing", new Thing(0));
         VarRef = Context.Insert("Var", new Thing(0));
         XsRef = Context.Insert("IntList", new IntList());
         {
-            StringCatalog.RegisterString(Registry);
-            MathCatalog.RegisterMath(Registry);
             Registry.Function("bytes", ["string"], "string", (_, args) => Value.Str(DecodeHex(args[0].AsStr())));
             Registry.Method("Trace", "hex", ["string"], "void", (_, _, a) => { Trace.Add("hex " + Convert.ToHexString(a[0].AsStr().Span).ToLowerInvariant()); return Value.None; });
-            if (collections)
+            if (standard)
             {
-                CollectionsCatalog.RegisterCollections(Registry);
                 TestingCatalog.RegisterTesting(Registry, Output);
                 Registry.Function("printed", [], "string", (_, _) => Value.Str(new VmString(Output.ToArray())));
             }
         }
         Registry.Context("t", "Trace");
-        if (!collections) Registry.Context("root", "Thing").Context("v", "Var").Context("xs", "IntList");
-        if (!collections)
+        if (!standard) Registry.Context("root", "Thing").Context("v", "Var").Context("xs", "IntList");
+        if (!standard)
         {
             Registry.Method("IntList", "len", [], "int", (ctx, self, _) => Value.Int(ctx.Get<IntList>(self).Values.Length));
             Registry.Method("IntList", "at", ["int"], "int", (ctx, self, a) => Value.Int(ctx.Get<IntList>(self).Values[checked((int)a[0].AsInt())]));
@@ -98,7 +95,7 @@ sealed class Stub
         >= (byte)'a' and <= (byte)'f' => c - 'a' + 10,
         _ => throw new Error("RUN_HOST", "bytes: expected lowercase hexadecimal pairs")
     };
-    public void Bind() { Context.Set("t", TraceRef); if (!collections) { Context.Set("root", RootRef); Context.Set("v", VarRef); Context.Set("xs", XsRef); } }
+    public void Bind() { Context.Set("t", TraceRef); if (!standard) { Context.Set("root", RootRef); Context.Set("v", VarRef); Context.Set("xs", XsRef); } }
 }
 
 static class Runner
@@ -126,8 +123,9 @@ static class Runner
         {
             var exp = File.ReadAllLines(Path.Combine(dir, name + ".expect")); var kind = exp[0]; var lines = exp.Skip(1).Select(Unescape).ToArray(); var schemaName = schemaByName.TryGetValue(name, out var selectedSchema) ? selectedSchema : "schema.json"; var schemaBytes = File.ReadAllBytes(Path.Combine(dir, schemaName));
             using var schemaDocument = JsonDocument.Parse(schemaBytes);
-            var collectionCatalog = schemaDocument.RootElement.TryGetProperty("functions", out var functions) && functions.TryGetProperty("str_list", out _);
-            var stub = new Stub(collectionCatalog); stub.Bind(); var loaded = false; var ran = false; var error = ""; var code = "";
+            var standardCatalog = schemaDocument.RootElement.TryGetProperty("functions", out var functions) &&
+                new[] { "str_len", "math_abs", "str_list", "print" }.Any(name => functions.TryGetProperty(name, out _));
+            var stub = new Stub(standardCatalog); stub.Bind(); var loaded = false; var ran = false; var error = ""; var code = "";
             Error? caught = null;
             try { var p = Program.Load(File.ReadAllBytes(Path.Combine(dir, name + ".dslb")), schemaBytes, stub.Registry); loaded = true; p.Run(stub.Context, stub.Registry); ran = true; }
             catch (Error e) { caught = e; error = e.Message; code = e.Code; }

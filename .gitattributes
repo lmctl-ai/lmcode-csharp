@@ -8,3 +8,7 @@ tests/LmCode.Tests/Fixtures/*.json text eol=lf
 
 conformance/stdlib-vectors/*.dsl text eol=lf
 conformance/stdlib-vectors/*.expect text eol=lf
+
+# Canonical standard bytes and their digest must survive Windows checkout.
+std/*.json text eol=lf
+std/std.lock text eol=lf
