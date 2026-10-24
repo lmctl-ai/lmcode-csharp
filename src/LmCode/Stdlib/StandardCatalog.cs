@@ -21,7 +21,7 @@ public static class StandardCatalog
         {
             StringCatalog.RegisterString(registry);
             MathCatalog.RegisterMath(registry);
-            CollectionsCatalog.RegisterCollections(registry);
+            CollectionsCatalog.RegisterCollections(registry, defaultOwned: true);
             TestingCatalog.RegisterTesting(registry, null);
         }
         finally { registry.EndBuiltinRegistration(); }

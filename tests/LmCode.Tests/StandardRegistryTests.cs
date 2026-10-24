@@ -1,6 +1,7 @@
 using LmCode;
 using LmCode.Stdlib;
 using System.Text.Json;
+using System.Security.Cryptography;
 
 static class StandardRegistryTests
 {
@@ -23,6 +24,7 @@ static class StandardRegistryTests
         host.CheckSchemaSignatures(["context ctx: Thing", "fn host() -> int"]);
         Require(host.MatchesSchemaSignatures(["context ctx: Thing", "fn host() -> int"]), "schema match alias");
         Require(host.HostSignatures().SequenceEqual(["context ctx: Thing", "fn host() -> int"]), "host-only signatures");
+        LifecycleGuards();
         Console.WriteLine("PASS standard registry tests"); return 5;
     }
     private static void Require(bool condition, string message) { if (!condition) throw new Exception(message); }
@@ -37,4 +39,19 @@ static class StandardRegistryTests
             foreach (var overload in function.Value.EnumerateArray()) result.Add($"fn {function.Name}({string.Join(", ", overload.GetProperty("params").EnumerateArray().Select(x => x.GetString()))}) -> {overload.GetProperty("returns").GetString()}");
         result.Sort(StringComparer.Ordinal); return result.ToArray();
     }
+    private static void LifecycleGuards()
+    {
+        var registry = new Registry(); var program = Program.Load(Image("fn str_list() -> StrList", [7, 0, 0, 0, 0x11]), [], registry); var context = new Context();
+        program.Run(context, registry); program.Run(context, registry);
+        bool nestedRejected = false; Program? nested = null;
+        var guarded = new Registry(); guarded.Function("reenter", [], "void", (ctx, _) => { try { nested!.Run(ctx, new Registry(false)); } catch (Error e) when (e.Message == "registry run is already active") { nestedRejected = true; } return Value.None; });
+        nested = Program.Load(Image("fn reenter() -> void", [7, 0, 0, 0, 0x11]), [], guarded); nested.Run(new Context(), guarded);
+        Require(nestedRejected, "nested run guard");
+    }
+    private static byte[] Image(string import, byte[] code)
+    {
+        var b = new List<byte>("DSLB"u8.ToArray()); U16(b, 5); b.AddRange(SHA256.HashData([])); U32(b, 1); b.Add(1); byte[] text = System.Text.Encoding.UTF8.GetBytes(import); U32(b, (uint)text.Length); b.AddRange(text); U16(b, 1); U32(b, 0); U16(b, 0); U16(b, 0); U16(b, 4); U32(b, (uint)code.Length); b.AddRange(code); U32(b, 0); return b.ToArray();
+    }
+    private static void U16(List<byte> b, ushort value) { b.Add((byte)(value >> 8)); b.Add((byte)value); }
+    private static void U32(List<byte> b, uint value) { b.Add((byte)(value >> 24)); b.Add((byte)(value >> 16)); b.Add((byte)(value >> 8)); b.Add((byte)value); }
 }

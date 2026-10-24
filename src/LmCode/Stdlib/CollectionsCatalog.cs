@@ -12,11 +12,12 @@ public sealed class StrMap { internal readonly List<(VmString Key, VmString Valu
 public static class CollectionsCatalog
 {
     private const int MaxObjects = 65536;
-    private sealed class State { public int Count; }
+    private sealed class State { public int Count; public readonly List<ObjRef> References = []; }
     private static readonly ConditionalWeakTable<Context, State> States = new();
 
-    public static void RegisterCollections(Registry r)
+    public static void RegisterCollections(Registry r, bool defaultOwned = false)
     {
+        if (defaultOwned) r.MarkDefaultCollections();
         r.BeginCompatibilityRegistration();
         try
         {
@@ -119,6 +120,11 @@ public static class CollectionsCatalog
     {
         State state = States.GetOrCreateValue(context);
         if (state.Count >= MaxObjects) throw Error.Host($"{type} object limit exceeded (65536)");
-        ++state.Count; return context.Insert(type, value);
+        ++state.Count; ObjRef reference = context.Insert(type, value); state.References.Add(reference); return reference;
     }
+    internal static void BeginRun(Context context)
+    {
+        if (States.TryGetValue(context, out State? state)) { foreach (ObjRef reference in state.References) context.Remove(reference); state.References.Clear(); state.Count = 0; }
+    }
+    internal static void EndRun(Context context) => BeginRun(context);
 }

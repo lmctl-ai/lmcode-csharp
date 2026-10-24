@@ -31,6 +31,10 @@ public sealed partial class Program
 
     public void Run(Context context, Registry registry)
     {
+        Registry owner = boundRegistry ?? registry;
+        owner.EnterRun(context);
+        try
+        {
         var stack = new List<Value>(); var values = new Value[locals.Count]; var reader = new Reader(code);
         while (!reader.Done)
         {
@@ -93,6 +97,8 @@ public sealed partial class Program
             }
             catch (Error e) { var line = LineOf(faultPc); if (line is not null) e.Locate(line.Number, line.Column); throw; }
         }
+        }
+        finally { owner.ExitRun(context); }
     }
     private static Value Unary(List<Value> stack, ValueKind kind, string operation)
     {

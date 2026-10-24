@@ -59,4 +59,5 @@ public sealed class Context
     public T Get<T>(ObjRef obj) => obj.Index >= 0 && obj.Index < objects.Count && objects[obj.Index] is T value ? value : throw Error.Host($"context object #{obj.Index} has the wrong host type or was taken");
     public T Take<T>(ObjRef obj) { T value = Get<T>(obj); objects[obj.Index] = null; return value; }
     public int Count => objects.Count;
+    internal void Remove(ObjRef reference) { if ((uint)reference.Index < (uint)objects.Count) objects[reference.Index] = null; }
 }

@@ -8,6 +8,8 @@ public sealed class Registry
     private readonly HashSet<string> builtins = new(StringComparer.Ordinal);
     private bool registeringBuiltins;
     private bool compatibilityRegistration;
+    private int activeRuns;
+    private bool defaultCollections;
     public Registry(bool includeStd = true) { if (includeStd) Stdlib.StandardCatalog.RegisterStd(this); }
     private Registry Add(string name, string? type, string[] parameters, string returns,
         Func<Context, Value[], Value>? function, Func<Context, ObjRef, Value[], Value>? method)
@@ -64,6 +66,17 @@ public sealed class Registry
     internal void EndBuiltinRegistration() => registeringBuiltins = false;
     internal void BeginCompatibilityRegistration() => compatibilityRegistration = true;
     internal void EndCompatibilityRegistration() => compatibilityRegistration = false;
+    internal void MarkDefaultCollections() => defaultCollections = true;
+    internal void EnterRun(Context context)
+    {
+        if (Interlocked.CompareExchange(ref activeRuns, 1, 0) != 0) throw Error.Host("registry run is already active");
+        if (defaultCollections) Stdlib.CollectionsCatalog.BeginRun(context);
+    }
+    internal void ExitRun(Context context)
+    {
+        if (defaultCollections) Stdlib.CollectionsCatalog.EndRun(context);
+        Volatile.Write(ref activeRuns, 0);
+    }
     internal Binding? Resolve(string canonical) => bindings.GetValueOrDefault(canonical);
     internal string DeclaredFor(string canonical)
     {

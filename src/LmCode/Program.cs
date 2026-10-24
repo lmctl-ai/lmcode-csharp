@@ -38,6 +38,7 @@ public sealed partial class Program
     private readonly Dictionary<int, (int Counter, int End)> loops = [];
     private byte[] code = [];
     private ushort maxStack;
+    private Registry? boundRegistry;
     private Program() { }
     public int ConstantCount => consts.Count;
     public int ImportCount => imports.Count;
@@ -106,6 +107,6 @@ public sealed partial class Program
             p.lines.Add(new((int)pc, line, column));
         }
         if (!r.Done) throw Error.BadBytecode($"bytecode has {bytecode.Length - r.Pos} trailing byte(s) after the line table");
-        p.Verify(); return p;
+        p.boundRegistry = registry; p.Verify(); return p;
     }
 }
