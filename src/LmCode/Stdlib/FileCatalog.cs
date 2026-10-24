@@ -44,7 +44,6 @@ public static class FileCatalog
         {
             try
             {
-                if (OperatingSystem.IsWindows() && IsWindowsDevice(text!)) throw Failure(function, path, "invalid argument");
                 if (File.Exists(text) || Directory.Exists(text)) EnsureRegular(function, text);
                 using var stream = new FileStream(text!, append ? FileMode.Append : FileMode.Create, FileAccess.Write, FileShare.Read);
                 stream.Write(bytes); stream.Flush(true); return;
@@ -59,7 +58,6 @@ public static class FileCatalog
         if (TryTextPath(path, out string? text))
         {
             if (text!.Length == 0) return false;
-            if (OperatingSystem.IsWindows() && IsWindowsDevice(text)) return false;
             try
             {
                 var attributes = File.GetAttributes(text!);
@@ -75,9 +73,8 @@ public static class FileCatalog
     }
     private static void EnsureRegular(string function, string path)
     {
-        if (OperatingSystem.IsWindows() && IsWindowsDevice(path)) throw Failure(function, VmString.FromString(path), "invalid argument");
         if (Directory.Exists(path)) throw Failure(function, VmString.FromString(path), "is a directory");
-        if (OperatingSystem.IsWindows() && File.Exists(path))
+        if (OperatingSystem.IsWindows() && (File.Exists(path) || path.StartsWith(@"\\.\", StringComparison.Ordinal) || string.Equals(path, "NUL", StringComparison.OrdinalIgnoreCase)))
         {
             try
             {
@@ -87,7 +84,6 @@ public static class FileCatalog
             catch (Error) { throw; }
         }
     }
-    private static bool IsWindowsDevice(string path) => path.StartsWith(@"\\.\", StringComparison.Ordinal) || string.Equals(path, "NUL", StringComparison.OrdinalIgnoreCase);
     private static void ValidatePath(string function, VmString path)
     {
         if (path.Span.IndexOf((byte)0) >= 0) throw Failure(function, path, "invalid argument");
@@ -99,7 +95,7 @@ public static class FileCatalog
     }
     private static bool TryTextPath(VmString path, out string? text)
     {
-        try { text = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() ? new UTF8Encoding(false, true).GetString(path.Span) : null; return OperatingSystem.IsWindows() || OperatingSystem.IsMacOS(); }
+        try { text = OperatingSystem.IsWindows() ? new UTF8Encoding(false, true).GetString(path.Span) : null; return OperatingSystem.IsWindows(); }
         catch (DecoderFallbackException) { text = null; return false; }
     }
     private static Error Failure(string function, VmString path, string reason) => Error.Host($"{function}: {Display(path)}: {(string.IsNullOrEmpty(reason) ? "file operation failed" : reason)}");
@@ -111,6 +107,8 @@ public static class FileCatalog
     private static string Errno(int error) => new Win32Exception(error).Message;
 
     [DllImport("libc", SetLastError = true, EntryPoint = "open")] private static extern int UnixOpen(byte[] path, int flags, int mode);
+    private static int NativeOpen(byte[] path, int flags, int mode) => OperatingSystem.IsMacOS() && RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? MacOpenArm64(path, flags, 0, 0, 0, 0, 0, 0, mode) : UnixOpen(path, flags, mode);
+    [DllImport("libc", SetLastError = true, EntryPoint = "open")] private static extern int MacOpenArm64(byte[] path, int flags, nint pad2, nint pad3, nint pad4, nint pad5, nint pad6, nint pad7, nint mode);
     [DllImport("libc", SetLastError = true, EntryPoint = "read")] private static extern nint UnixRead(int fd, byte[] buffer, nuint count);
     [DllImport("libc", SetLastError = true, EntryPoint = "write")] private static extern nint UnixWriteRaw(int fd, byte[] buffer, nuint count);
     [DllImport("libc", SetLastError = true, EntryPoint = "fsync")] private static extern int UnixFsync(int fd);
@@ -121,14 +119,14 @@ public static class FileCatalog
         byte[] stat = new byte[512];
         if (UnixStat(NativePath(path), stat) != 0) throw Failure(function, new VmString(path), Errno(Marshal.GetLastPInvokeError()));
         if (!StatRegular(stat)) throw Failure(function, new VmString(path), "invalid argument");
-        int fd = UnixOpen(NativePath(path), 0, 0); if (fd < 0) throw Failure(function, new VmString(path), Errno(Marshal.GetLastPInvokeError()));
+        int fd = NativeOpen(NativePath(path), 0, 0); if (fd < 0) throw Failure(function, new VmString(path), Errno(Marshal.GetLastPInvokeError()));
         try { var result = new List<byte>(); var buffer = new byte[65536]; while (true) { nint n = UnixRead(fd, buffer, (nuint)buffer.Length); int error = Marshal.GetLastPInvokeError(); if (n == 0) break; if (n < 0 && error == 4) continue; if (n < 0) throw Failure(function, new VmString(path), Errno(error)); result.AddRange(buffer.AsSpan(0, (int)n).ToArray()); } return result.ToArray(); }
         finally { if (UnixClose(fd) != 0) throw Failure(function, new VmString(path), Errno(Marshal.GetLastPInvokeError())); }
     }
     private static void UnixWrite(string function, ReadOnlySpan<byte> path, ReadOnlySpan<byte> bytes, bool append)
     {
         byte[] native = NativePath(path); byte[] stat = new byte[512]; int statResult = UnixStat(native, stat); if (statResult == 0 && !StatRegular(stat)) throw Failure(function, new VmString(path), "invalid argument"); if (statResult != 0 && Marshal.GetLastPInvokeError() is not (2 or 20)) throw Failure(function, new VmString(path), Errno(Marshal.GetLastPInvokeError()));
-        int flags = 1 | (OperatingSystem.IsMacOS() ? 0x200 : 64) | (append ? (OperatingSystem.IsMacOS() ? 0x8 : 1024) : (OperatingSystem.IsMacOS() ? 0x400 : 512)); int fd = UnixOpen(native, flags, 438); if (fd < 0) throw Failure(function, new VmString(path), Errno(Marshal.GetLastPInvokeError()));
+        int flags = 1 | (OperatingSystem.IsMacOS() ? 0x200 : 64) | (append ? (OperatingSystem.IsMacOS() ? 0x8 : 1024) : (OperatingSystem.IsMacOS() ? 0x400 : 512)); int fd = NativeOpen(native, flags, 438); if (fd < 0) throw Failure(function, new VmString(path), Errno(Marshal.GetLastPInvokeError()));
         try { byte[] data = bytes.ToArray(); int at = 0; while (at < data.Length) { nint n = UnixWriteRaw(fd, data.AsSpan(at).ToArray(), (nuint)(data.Length - at)); int error = Marshal.GetLastPInvokeError(); if (n < 0 && error == 4) continue; if (n <= 0) throw Failure(function, new VmString(path), Errno(error)); at += (int)n; } int sync; do { sync = UnixFsync(fd); } while (sync != 0 && Marshal.GetLastPInvokeError() == 4); if (sync != 0) throw Failure(function, new VmString(path), Errno(Marshal.GetLastPInvokeError())); }
         finally { if (UnixClose(fd) != 0) throw Failure(function, new VmString(path), Errno(Marshal.GetLastPInvokeError())); }
     }
