@@ -3,7 +3,7 @@
 `dotnet build -c Release -warnaserror`, `dotnet test`, and
 `dotnet run --project conformance/LmCode.Conformance` are the standard checks.
 The package-free test executable is invoked by the project's VSTest target.
-All 50 checked-in conformance vectors must run; SOURCE_COMMIT records the C++ source.
+All 51 checked-in core conformance vectors must run; the `SOURCE_COMMIT` files record the C++ source for the core and catalog suites.
 Use `scripts/sync-vectors.sh` to refresh without recompiling vectors.
 
 Native publish: `dotnet publish examples/Greeter -r linux-x64 -c Release`.
