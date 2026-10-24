@@ -29,3 +29,6 @@
 
 - Default std execution guards the registry captured at load time, including alternate run-registry arguments. Entry/exit cleanup invalidates std collection handles and resets quota; retired slots are reused without moving unrelated host objects. Opt-out registries retain legacy/manual lifetimes and nesting behavior.
 - Canonical std bytes and the copied lock digest are checked in native tests as well as the standalone verification script; both files use LF on Windows.
+
+- Unix file metadata rejects FIFOs/devices before opening; file creation passes mode 0666 subject to umask. On Apple arm64, `open`'s variadic mode argument occupies the first stack slot, so the interop signature pads x2–x7 rather than passing mode in x2. Darwin x64 uses `stat$INODE64`; arm64 uses `stat`. See [Apple's ARM64 calling convention](https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms).
+- Windows file classification uses a zero-access `CreateFileW` metadata handle, follows symlinks, and checks disk type plus directory attributes. This rejects device aliases without demanding content-read permission for writes or existence checks. Long drive/UNC paths use extended prefixes; byte content is never decoded.

@@ -1,4 +1,6 @@
 using System.Security.Cryptography;
+using System.Runtime.InteropServices;
+using System.Text;
 using LmCode;
 using LmCode.Stdlib;
 
@@ -19,9 +21,51 @@ static class FileCatalogTests
             Program.Load(Image(constants, code.ToArray(), 7), [], r).Run(new Context(), r);
             Require(seen.Count == 2 && seen[0].Span.SequenceEqual(new byte[] { 97, 0, 195, 191 }) && seen[1].Span.SequenceEqual(new byte[] { 97, 0, 195, 191, 97, 0, 195, 191 }), "raw file bytes");
             Require(ints.SequenceEqual([1]), "file line count");
-            Console.WriteLine("PASS file catalog tests"); return 3;
+            int checks = 3;
+            if (!OperatingSystem.IsWindows())
+            {
+                const UnixFileMode owner = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+                Require((File.GetUnixFileMode(path) & owner) == owner, "created file owner permissions"); ++checks;
+                string fifo = Path.Combine(dir, "fifo");
+                Require(MkFifo(Encoding.UTF8.GetBytes(fifo + "\0"), 384) == 0, "create FIFO fixture");
+                checks += RejectSpecial(fifo) + RejectSpecial("/dev/null");
+                string broken = Path.Combine(dir, "broken"); File.CreateSymbolicLink(broken, Path.Combine(dir, "absent"));
+                Require(!RunFile("file_exists", broken).AsBool(), "broken symlink does not exist"); ++checks;
+            }
+            else
+            {
+                checks += RejectSpecial("NUL") + RejectSpecial("NUL.txt") + RejectSpecial(Path.Combine(dir, "NUL"));
+            }
+            Console.WriteLine($"PASS file catalog tests ({checks})"); return checks;
         }
         finally { try { Directory.Delete(dir, true); } catch { } }
+    }
+    [DllImport("libc", SetLastError = true, EntryPoint = "mkfifo")]
+    private static extern int MkFifo(byte[] path, uint mode);
+    private static int RejectSpecial(string path)
+    {
+        Require(!RunFile("file_exists", path).AsBool(), "nonregular path does not exist as a file");
+        foreach (string function in new[] { "file_read", "file_write", "file_append", "file_lines" })
+        {
+            bool trapped = false;
+            try { RunFile(function, path); }
+            catch (Error e) { trapped = e.Code == "RUN_HOST" && e.Message.Contains(function + ": " + path + ": ", StringComparison.Ordinal); }
+            Require(trapped, function + " rejects nonregular path");
+        }
+        return 5;
+    }
+    private static Value RunFile(string function, string path)
+    {
+        bool writes = function is "file_write" or "file_append";
+        string returns = writes ? "void" : function == "file_exists" ? "bool" : function == "file_lines" ? "StrList" : "string";
+        string signature = $"fn {function}(string{(writes ? ", string" : "")}) -> {returns}";
+        var registry = new Registry(); Value result = Value.None;
+        registry.Function("capture_file", [returns], "void", (_, args) => { result = args[0]; return Value.None; });
+        string[] constants = [signature, $"fn capture_file({returns}) -> void", path, "payload"];
+        var code = new List<byte>(); PushString(code, 2); if (writes) PushString(code, 3);
+        Call(code, 0, writes ? 2 : 1); if (!writes) Call(code, 1, 1); code.Add(0x11);
+        Program.Load(Image(constants, code.ToArray(), writes ? 1 : 2), [], registry).Run(new Context(), registry);
+        return result;
     }
     private static void PushString(List<byte> code, int index) { code.Add(2); U32(code, (uint)index); }
     private static void Call(List<byte> code, int index, int argc) { code.Add(7); U16(code, (ushort)index); code.Add((byte)argc); }

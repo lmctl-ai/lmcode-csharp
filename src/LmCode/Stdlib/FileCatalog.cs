@@ -44,7 +44,7 @@ public static class FileCatalog
         {
             try
             {
-                if (File.Exists(text) || Directory.Exists(text)) EnsureRegular(function, text);
+                EnsureRegular(function, text!, allowMissing: true);
                 using var stream = new FileStream(text!, append ? FileMode.Append : FileMode.Create, FileAccess.Write, FileShare.Read);
                 stream.Write(bytes); stream.Flush(true); return;
             }
@@ -58,32 +58,60 @@ public static class FileCatalog
         if (TryTextPath(path, out string? text))
         {
             if (text!.Length == 0) return false;
-            try
-            {
-                var attributes = File.GetAttributes(text!);
-                return (attributes & FileAttributes.Directory) == 0;
-            }
-            catch (FileNotFoundException) { return false; }
-            catch (DirectoryNotFoundException) { return false; }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException) { throw Failure(function, path, e.Message); }
+            return WindowsRegular(function, path, text) == true;
         }
         byte[] native = NativePath(path.Span); byte[] stat = new byte[512];
         if (UnixStat(native, stat) != 0) { int error = Marshal.GetLastPInvokeError(); return error is 2 or 20 ? false : throw Failure(function, path, Errno(error)); }
         return StatRegular(stat);
     }
-    private static void EnsureRegular(string function, string path)
+    private static void EnsureRegular(string function, string path, bool allowMissing = false)
     {
-        if (Directory.Exists(path)) throw Failure(function, VmString.FromString(path), "is a directory");
-        if (OperatingSystem.IsWindows() && (File.Exists(path) || path.StartsWith(@"\\.\", StringComparison.Ordinal) || string.Equals(path, "NUL", StringComparison.OrdinalIgnoreCase)))
-        {
-            try
-            {
-                using SafeFileHandle handle = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-                if (GetFileType(handle.DangerousGetHandle()) != 1) throw Failure(function, VmString.FromString(path), "invalid argument");
-            }
-            catch (Error) { throw; }
-        }
+        bool? regular = WindowsRegular(function, VmString.FromString(path), path);
+        if (regular == true || (regular is null && allowMissing)) return;
+        throw Failure(function, VmString.FromString(path), new Win32Exception(regular is null ? 2 : 87).Message);
     }
+    // Query with no read/write access: write-only files still support file_write,
+    // and existence does not depend on content permissions. The native handle
+    // follows symlinks and identifies DOS devices, including NUL.txt aliases.
+    private static bool? WindowsRegular(string function, VmString original, string path)
+    {
+        string native;
+        try
+        {
+            native = Path.GetFullPath(path);
+            if (native.Length >= 248 && !native.StartsWith(@"\\?\", StringComparison.Ordinal) && !native.StartsWith(@"\\.\", StringComparison.Ordinal))
+                native = native.StartsWith(@"\\", StringComparison.Ordinal) ? @"\\?\UNC\" + native[2..] : @"\\?\" + native;
+        }
+        catch (Exception e) when (e is ArgumentException or NotSupportedException or IOException) { throw Failure(function, original, e.Message); }
+        using SafeFileHandle handle = CreateFileW(native, 0, 7, IntPtr.Zero, 3, 0x02000000, IntPtr.Zero);
+        if (handle.IsInvalid)
+        {
+            int error = Marshal.GetLastPInvokeError();
+            if (error is 2 or 3) return null;
+            throw Failure(function, original, new Win32Exception(error).Message);
+        }
+        uint kind = GetFileType(handle.DangerousGetHandle());
+        if (kind != 1)
+        {
+            int error = Marshal.GetLastPInvokeError();
+            if (kind == 0 && error != 0) throw Failure(function, original, new Win32Exception(error).Message);
+            return false;
+        }
+        if (!GetFileInformationByHandle(handle, out FileInformation info))
+            throw Failure(function, original, new Win32Exception(Marshal.GetLastPInvokeError()).Message);
+        return (info.Attributes & 0x10) == 0;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    private struct FileInformation
+    {
+        public uint Attributes, CreationLow, CreationHigh, AccessLow, AccessHigh,
+            WriteLow, WriteHigh, VolumeSerial, SizeHigh, SizeLow, Links, IndexHigh, IndexLow;
+    }
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true, ExactSpelling = true)]
+    private static extern SafeFileHandle CreateFileW(string path, uint access, uint share, IntPtr security, uint disposition, uint flags, IntPtr template);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetFileInformationByHandle(SafeFileHandle handle, out FileInformation information);
     private static void ValidatePath(string function, VmString path)
     {
         if (path.Span.IndexOf((byte)0) >= 0) throw Failure(function, path, "invalid argument");
@@ -107,6 +135,7 @@ public static class FileCatalog
     private static string Errno(int error) => new Win32Exception(error).Message;
 
     [DllImport("libc", SetLastError = true, EntryPoint = "open")] private static extern int UnixOpen(byte[] path, int flags, int mode);
+    // Apple arm64 puts variadic open(mode) in the first stack slot, after x0-x7.
     private static int NativeOpen(byte[] path, int flags, int mode) => OperatingSystem.IsMacOS() && RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? MacOpenArm64(path, flags, 0, 0, 0, 0, 0, 0, mode) : UnixOpen(path, flags, mode);
     [DllImport("libc", SetLastError = true, EntryPoint = "open")] private static extern int MacOpenArm64(byte[] path, int flags, nint pad2, nint pad3, nint pad4, nint pad5, nint pad6, nint pad7, nint mode);
     [DllImport("libc", SetLastError = true, EntryPoint = "read")] private static extern nint UnixRead(int fd, byte[] buffer, nuint count);
