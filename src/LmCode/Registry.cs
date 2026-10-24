@@ -5,16 +5,25 @@ public sealed class Registry
 {
     private readonly Dictionary<string, Binding> bindings = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> contexts = new(StringComparer.Ordinal);
+    private readonly HashSet<string> builtins = new(StringComparer.Ordinal);
+    private bool registeringBuiltins;
+    public Registry(bool enableStd = true) { if (enableStd) Stdlib.StandardCatalog.RegisterStd(this); }
     private Registry Add(string name, string? type, string[] parameters, string returns,
         Func<Context, Value[], Value>? function, Func<Context, ObjRef, Value[], Value>? method)
     {
         string label = type is null ? "function" : "method";
         string fullName = type is null ? name : type + "." + name;
         string sig = $"({string.Join(", ", parameters)}) -> {returns}";
+        string canonical = $"{(type is null ? "fn" : "method")} {fullName}{sig}";
+        if (bindings.ContainsKey(canonical) && registeringBuiltins) return this;
         foreach (var entry in bindings.Values)
             if (entry.Name == name && entry.TypeName == type && entry.Parameters.AsSpan().SequenceEqual(parameters))
-                throw new Error("LOAD_UNBOUND", $"registry: {label} '{fullName}{sig}' is registered twice");
-        bindings.Add($"{(type is null ? "fn" : "method")} {fullName}{sig}", new(name, type, (string[])parameters.Clone(), returns, function, method));
+            {
+                if (!builtins.Contains(canonical)) throw new Error("LOAD_UNBOUND", $"registry: {label} '{fullName}{sig}' is registered twice");
+                bindings[canonical] = new(name, type, (string[])parameters.Clone(), returns, function, method); return this;
+            }
+        bindings.Add(canonical, new(name, type, (string[])parameters.Clone(), returns, function, method));
+        if (registeringBuiltins) builtins.Add(canonical);
         return this;
     }
     public Registry Function(string name, string[] parameters, string returns, Func<Context, Value[], Value> function) => Add(name, null, parameters, returns, function, null);
@@ -31,6 +40,16 @@ public sealed class Registry
         foreach (var (name, type) in contexts) result.Add($"context {name}: {type}");
         result.Sort(StringComparer.Ordinal); return result.ToArray();
     }
+    public string[] HostSignatures() => bindings.Keys.Where(x => !Stdlib.StandardCatalog.IsStandard(x)).Order(StringComparer.Ordinal).ToArray();
+    public void CheckSchemaSignatures(IEnumerable<string> schemaSignatures)
+    {
+        var expected = schemaSignatures.ToHashSet(StringComparer.Ordinal);
+        foreach (string builtin in builtins) expected.Add(builtin);
+        var actual = bindings.Keys.ToHashSet(StringComparer.Ordinal);
+        if (!actual.SetEquals(expected)) throw new Error("LOAD_UNBOUND", $"registry schema signatures differ: missing [{string.Join(", ", expected.Except(actual).Order())}], extra [{string.Join(", ", actual.Except(expected).Order())}]");
+    }
+    internal void BeginBuiltinRegistration() => registeringBuiltins = true;
+    internal void EndBuiltinRegistration() => registeringBuiltins = false;
     internal Binding? Resolve(string canonical) => bindings.GetValueOrDefault(canonical);
     internal string DeclaredFor(string canonical)
     {

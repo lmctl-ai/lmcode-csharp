@@ -7,7 +7,7 @@ using LmCode.Stdlib;
 static class StringCatalogTests
 {
     private static string Fixture(string name) => Path.Combine(AppContext.BaseDirectory, "Fixtures", name);
-    private static Registry Catalog() { var r = new Registry(); StringCatalog.RegisterString(r); return r; }
+    private static Registry Catalog() { var r = new Registry(false); StringCatalog.RegisterString(r); return r; }
     private static int checks;
     private static void Require(bool condition, string message) { if (!condition) throw new Exception(message); ++checks; }
 

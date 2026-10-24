@@ -39,6 +39,8 @@ jobs:
         run: |
           npm i -g @lmctl-ai/lmctl@0.2.347
           lmscript --version
+      - name: Canonical standard schema
+        run: scripts/sync-std.sh --verify
       - name: Build and static analysis
         run: dotnet build -c Release -warnaserror
       - name: Unit tests

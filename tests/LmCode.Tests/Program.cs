@@ -23,7 +23,8 @@ static class Tests
         int catalog = StringCatalogTests.Run();
         int collections = CollectionsTestingCatalogTests.Run();
         int math = MathCatalogTests.Run();
-        Console.WriteLine($"PASS unit tests ({checks.Length + 6 + verified + catalog + collections + math})"); return 0;
+        int standard = StandardRegistryTests.Run();
+        Console.WriteLine($"PASS unit tests ({checks.Length + 6 + verified + catalog + collections + math + standard})"); return 0;
     }
 
     static bool RawBytes()
@@ -36,7 +37,7 @@ static class Tests
     static bool Values() => Value.Int(4).AsInt() == 4 && Value.Bool(true).AsBool() && Value.Str(VmString.FromString("x")).AsStr().ToString() == "x";
     static bool RegistrySignatures()
     {
-        var r = new Registry().Context("root", "Thing").Function("f", ["int"], "int", (_, a) => Value.Int(a[0].AsInt()));
+        var r = new Registry(false).Context("root", "Thing").Function("f", ["int"], "int", (_, a) => Value.Int(a[0].AsInt()));
         return r.Signatures().SequenceEqual(["context root: Thing", "fn f(int) -> int"]);
     }
     static bool ContextObjects()

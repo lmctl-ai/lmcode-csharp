@@ -17,7 +17,7 @@ static class CollectionsTestingCatalogTests
 
     private static void CollectionSignatures()
     {
-        var r = new Registry(); CollectionsCatalog.RegisterCollections(r);
+        var r = new Registry(false); CollectionsCatalog.RegisterCollections(r);
         Require(r.Signatures().Length == 35, "collection signature count");
         Require(r.Signatures().Contains("fn str_split(string, string) -> StrList"), "split signature");
         Require(r.Signatures().Contains("method FloatList.contains(float) -> bool"), "float signature");
@@ -26,7 +26,7 @@ static class CollectionsTestingCatalogTests
     private static void ListAndMapCallbacks()
     {
         VmString? joined = null; VmString? key = null;
-        var r = new Registry(); CollectionsCatalog.RegisterCollections(r);
+        var r = new Registry(false); CollectionsCatalog.RegisterCollections(r);
         r.Function("capture_str", ["string"], "void", (_, a) => { if (joined is null) joined = a[0].AsStr(); else key = a[0].AsStr(); return Value.None; });
         var list = Run(r, [
             "fn str_list() -> StrList", "method StrList.add(string) -> StrList", "method StrList.join(string) -> string",
@@ -34,7 +34,7 @@ static class CollectionsTestingCatalogTests
             7, 0, 0, 0, 2, 0, 0, 0, 4, 8, 0, 1, 1, 2, 0, 0, 0, 5, 8, 0, 1, 1, 2, 0, 0, 0, 6, 8, 0, 2, 1, 7, 0, 3, 1, 0x11], 4);
         Require(list && joined is not null && joined.Span.SequenceEqual("a,b"u8), "list callbacks");
 
-        var map = new Registry(); CollectionsCatalog.RegisterCollections(map);
+        var map = new Registry(false); CollectionsCatalog.RegisterCollections(map);
         map.Function("capture_str", ["string"], "void", (_, a) => { key = a[0].AsStr(); return Value.None; });
         Run(map, ["fn str_map() -> StrMap", "method StrMap.set(string, string) -> StrMap", "method StrMap.key_at(int) -> string", "fn capture_str(string) -> void", "a", "one", "b", "two"], [
             7, 0, 0, 0, 2, 0, 0, 0, 4, 2, 0, 0, 0, 5, 8, 0, 1, 2, 2, 0, 0, 0, 6, 2, 0, 0, 0, 7, 8, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 2, 1, 7, 0, 3, 1, 0x11], 4);
@@ -43,7 +43,7 @@ static class CollectionsTestingCatalogTests
 
     private static void TestingCallbacks()
     {
-        using var output = new MemoryStream(); var r = new Registry(); TestingCatalog.RegisterTesting(r, output);
+        using var output = new MemoryStream(); var r = new Registry(false); TestingCatalog.RegisterTesting(r, output);
         Run(r, ["fn print(string) -> void", "hello"], [2, 0, 0, 0, 1, 7, 0, 0, 1, 0x11], 1);
         Require(output.ToArray().AsSpan().SequenceEqual("hello\n"u8), "print writes raw bytes and LF");
         var close = new List<byte>(); for (int i = 0; i < 3; ++i) close.AddRange([18, 0, 0, 0, 0, 0, 0, 0, 0]);

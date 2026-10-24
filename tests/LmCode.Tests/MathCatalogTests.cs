@@ -7,11 +7,11 @@ static class MathCatalogTests
 {
     public static int Run()
     {
-        var registry = new Registry(); MathCatalog.RegisterMath(registry);
+        var registry = new Registry(false); MathCatalog.RegisterMath(registry);
         Require(registry.Signatures().Length == 16, "math signature count");
         CheckParity("math", registry, "math.schema-fragment.json");
-        var collections = new Registry(); CollectionsCatalog.RegisterCollections(collections); CheckParity("collections", collections, "collections.schema-fragment.json");
-        var testing = new Registry(); TestingCatalog.RegisterTesting(testing, new MemoryStream()); CheckParity("testing", testing, "testing.schema-fragment.json");
+        var collections = new Registry(false); CollectionsCatalog.RegisterCollections(collections); CheckParity("collections", collections, "collections.schema-fragment.json");
+        var testing = new Registry(false); TestingCatalog.RegisterTesting(testing, new MemoryStream()); CheckParity("testing", testing, "testing.schema-fragment.json");
         Require(MathCatalog.MathAbs(long.MinValue) == long.MinValue && MathCatalog.MathPow(2, 63) == long.MinValue && MathCatalog.MathPow(2, 64) == 0, "integer wrapping");
         Require(MathCatalog.MathSqrt(9_223_372_030_926_249_000L) == 3_037_000_498, "exact integer sqrt");
         Require(MathCatalog.MathRound(0.5) == 1 && MathCatalog.MathRound(-0.5) == -1, "ties away from zero");

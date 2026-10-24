@@ -15,6 +15,7 @@
     <None Include="../../stdlib/math.schema-fragment.json" Link="Fixtures/math.schema-fragment.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="../../stdlib/collections.schema-fragment.json" Link="Fixtures/collections.schema-fragment.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="../../stdlib/testing.schema-fragment.json" Link="Fixtures/testing.schema-fragment.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../../std/lmcode-std.schema.json" Link="Fixtures/lmcode-std.schema.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
   <Target Name="RunConsoleTests" AfterTargets="VSTest" DependsOnTargets="Build">
     <Exec Command="dotnet &quot;$(TargetPath)&quot;" />
