@@ -9,6 +9,18 @@ Experimental: bytecode compatibility is not promised. The SDK reads version 5 on
 compiler, SDK and host must move together when the format version changes. Pin an
 SDK commit and matching compiler version.
 
+## Gallery
+
+| **Bytecode Conformance Suite** | **Unit Tests & Invariants** |
+| --- | --- |
+| <img src="docs/images/conformance.png" width="440"> | <img src="docs/images/unit-tests.png" width="440"> |
+| All 51 core bytecode vectors pass across opcodes, types, error paths, and control flow.<br>`dotnet run --project conformance/LmCode.Conformance -- conformance/vectors` | 136 unit tests and standard catalog tests covering C# SDK invariants.<br>`dotnet test` |
+
+| **Greeter Example Host** | **Same Bytecode, Four Runtimes** |
+| --- | --- |
+| <img src="docs/images/greeter-example.png" width="440"> | <img src="docs/images/same-bytecode-four-runtimes.png" width="440"> |
+| Minimal embedding host compiling and executing DSL logic in .NET 8 / C#.<br>`dotnet run --project examples/Greeter -- --dsl hello.dslb` | Cross-language parity: C++, Rust, Go, and C# run the exact same bytecode.<br>`PASS 51/51 vectors across 4 runtimes` |
+
 ## Embed
 
 Reference `src/LmCode/LmCode.csproj` from your host (`dotnet add reference PATH`), or
@@ -61,18 +73,6 @@ dotnet run --project conformance/LmCode.Conformance
 dotnet run --project examples/Greeter -- --dsl examples/Greeter/hello.dslb
 dotnet publish examples/Greeter -r linux-x64 -c Release -p:PublishAot=true
 ```
-
-## Gallery
-
-| **Bytecode Conformance Suite** | **Unit Tests & Invariants** |
-| --- | --- |
-| <img src="docs/images/conformance.png" width="440"> | <img src="docs/images/unit-tests.png" width="440"> |
-| All 51 core bytecode vectors pass across opcodes, types, error paths, and control flow.<br>`dotnet run --project conformance/LmCode.Conformance -- conformance/vectors` | 136 unit tests and standard catalog tests covering C# SDK invariants.<br>`dotnet test` |
-
-| **Greeter Example Host** | **Same Bytecode, Four Runtimes** |
-| --- | --- |
-| <img src="docs/images/greeter-example.png" width="440"> | <img src="docs/images/same-bytecode-four-runtimes.png" width="440"> |
-| Minimal embedding host compiling and executing DSL logic in .NET 8 / C#.<br>`dotnet run --project examples/Greeter -- --dsl hello.dslb` | Cross-language parity: C++, Rust, Go, and C# run the exact same bytecode.<br>`PASS 51/51 vectors across 4 runtimes` |
 
 `dotnet test` runs the package-free console regression suite through MSBuild; no
 xUnit or other test framework is used. The conformance command runs every checked-in
