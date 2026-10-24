@@ -103,6 +103,9 @@ public static class StringCatalog
 
     public static void RegisterString(Registry r)
     {
+        r.BeginCompatibilityRegistration();
+        try
+        {
         r.Function("str_starts_with", ["string", "string"], "bool", static (_, a) => Value.Bool(StrStartsWith(a[0].AsStr(), a[1].AsStr())));
         r.Function("str_ends_with", ["string", "string"], "bool", static (_, a) => Value.Bool(StrEndsWith(a[0].AsStr(), a[1].AsStr())));
         r.Function("str_contains", ["string", "string"], "bool", static (_, a) => Value.Bool(StrContains(a[0].AsStr(), a[1].AsStr())));
@@ -119,6 +122,8 @@ public static class StringCatalog
         r.Function("str_is_int", ["string"], "bool", static (_, a) => Value.Bool(StrIsInt(a[0].AsStr())));
         r.Function("str_to_float", ["string"], "float", static (_, a) => Value.Float(StrToFloat(a[0].AsStr())));
         r.Function("str_is_float", ["string"], "bool", static (_, a) => Value.Bool(StrIsFloat(a[0].AsStr())));
+        }
+        finally { r.EndCompatibilityRegistration(); }
     }
 
     private static VmString MapAscii(VmString s, bool upper)

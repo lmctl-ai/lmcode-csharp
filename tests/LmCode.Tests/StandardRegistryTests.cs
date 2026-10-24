@@ -9,16 +9,20 @@ static class StandardRegistryTests
         var standard = new Registry();
         Require(standard.Signatures().Length == 69 && standard.HostSignatures().Length == 0, "default standard surface");
         standard.CheckSchemaSignatures(CanonicalSignatures());
-        var optout = new Registry(false);
+        var optout = new Registry(includeStd: false);
         Require(optout.Signatures().Length == 0, "opt-out registry");
         StandardCatalog.RegisterStd(optout); StandardCatalog.RegisterStd(optout);
         Require(optout.Signatures().Length == 69, "idempotent standard binder");
+        Require(optout.StdSignatures().Length == 69 && Std.Signatures.Count == 69, "installed standard signatures");
         var overrideRegistry = new Registry();
-        overrideRegistry.Function("str_len", ["string"], "int", (_, _) => Value.Int(99));
-        Require(overrideRegistry.HostSignatures().Length == 0, "standard override remains standard");
-        var host = new Registry(false).Function("host", [], "int", (_, _) => Value.Int(1));
-        host.CheckSchemaSignatures(["fn host() -> int"]);
-        Require(host.HostSignatures().SequenceEqual(["fn host() -> int"]), "host-only signatures");
+        try { overrideRegistry.Function("str_len", ["string"], "int", (_, _) => Value.Int(99)); throw new Exception("builtin override accepted as ordinary duplicate"); }
+        catch (Error e) when (e.Code == "LOAD_UNBOUND") { }
+        StringCatalog.RegisterString(overrideRegistry); StringCatalog.RegisterString(overrideRegistry);
+        Require(overrideRegistry.HostSignatures().Length == 0, "standard compatibility binder remains standard");
+        var host = new Registry(false).Context("ctx", "Thing").Function("host", [], "int", (_, _) => Value.Int(1));
+        host.CheckSchemaSignatures(["context ctx: Thing", "fn host() -> int"]);
+        Require(host.MatchesSchemaSignatures(["context ctx: Thing", "fn host() -> int"]), "schema match alias");
+        Require(host.HostSignatures().SequenceEqual(["context ctx: Thing", "fn host() -> int"]), "host-only signatures");
         Console.WriteLine("PASS standard registry tests"); return 5;
     }
     private static void Require(bool condition, string message) { if (!condition) throw new Exception(message); }

@@ -12,6 +12,7 @@ public static class StandardCatalog
         TestingCatalog.RegisterTesting(registry, new MemoryStream());
         return registry.Signatures().ToHashSet(StringComparer.Ordinal);
     });
+    public static IReadOnlyCollection<string> Signatures => Canonical.Value;
 
     public static void RegisterStd(Registry registry)
     {
@@ -27,4 +28,11 @@ public static class StandardCatalog
     }
 
     internal static bool IsStandard(string signature) => Canonical.Value.Contains(signature);
+}
+
+/// <summary>Short compatibility alias for the built-in standard binder.</summary>
+public static class Std
+{
+    public static void RegisterStd(Registry registry) => StandardCatalog.RegisterStd(registry);
+    public static IReadOnlyCollection<string> Signatures => StandardCatalog.Signatures;
 }

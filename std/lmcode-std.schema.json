@@ -1,6 +1,6 @@
 {
-  "context": {},
   "dsl.schema": 2,
+  "lmcode.std": 1,
   "functions": {
     "assert_close": [
       {
@@ -310,7 +310,6 @@
       }
     ]
   },
-  "name": "lmcode_std_v1",
   "types": {
     "FloatList": {
       "methods": {

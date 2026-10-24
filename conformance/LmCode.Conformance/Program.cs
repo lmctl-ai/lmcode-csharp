@@ -10,7 +10,7 @@ sealed class IntList { public readonly long[] Values = [0, 1, 2, 3]; }
 sealed class Stub
 {
     public readonly List<string> Trace = [];
-    public readonly Registry Registry = new();
+    public readonly Registry Registry;
     public readonly Context Context = new();
     public readonly ObjRef TraceRef;
     public readonly ObjRef RootRef;
@@ -22,6 +22,7 @@ sealed class Stub
     public Stub(bool collectionCatalog)
     {
         collections = collectionCatalog;
+        Registry = new Registry(collectionCatalog);
         TraceRef = Context.Insert("Trace", Trace);
         RootRef = Context.Insert("Thing", new Thing(0));
         VarRef = Context.Insert("Var", new Thing(0));

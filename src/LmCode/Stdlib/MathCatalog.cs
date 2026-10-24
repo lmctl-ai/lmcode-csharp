@@ -52,6 +52,9 @@ public static class MathCatalog
 
     public static void RegisterMath(Registry r)
     {
+        r.BeginCompatibilityRegistration();
+        try
+        {
         r.Function("math_abs", ["int"], "int", static (_, a) => Value.Int(MathAbs(a[0].AsInt())));
         r.Function("math_abs", ["float"], "float", static (_, a) => Value.Float(MathAbs(a[0].AsFloat())));
         r.Function("math_min", ["int", "int"], "int", static (_, a) => Value.Int(MathMin(a[0].AsInt(), a[1].AsInt())));
@@ -68,5 +71,7 @@ public static class MathCatalog
         r.Function("math_pow", ["float", "float"], "float", static (_, a) => Value.Float(MathPow(a[0].AsFloat(), a[1].AsFloat())));
         r.Function("math_sqrt", ["int"], "int", static (_, a) => Value.Int(MathSqrt(a[0].AsInt())));
         r.Function("math_sqrt", ["float"], "float", static (_, a) => Value.Float(MathSqrt(a[0].AsFloat())));
+        }
+        finally { r.EndCompatibilityRegistration(); }
     }
 }

@@ -17,6 +17,9 @@ public static class CollectionsCatalog
 
     public static void RegisterCollections(Registry r)
     {
+        r.BeginCompatibilityRegistration();
+        try
+        {
         r.Method("StrList", "len", [], "int", static (c, self, _) => Value.Int(c.Get<StrList>(self).Items.Count));
         r.Method("StrList", "at", ["int"], "string", static (c, self, a) => Value.Str(c.Get<StrList>(self).Items[Index(a[0].AsInt(), c.Get<StrList>(self).Items.Count, "StrList.at")]));
         r.Method("StrList", "add", ["string"], "StrList", static (c, self, a) => { c.Get<StrList>(self).Items.Add(a[0].AsStr()); return Value.Object("StrList", self); });
@@ -76,6 +79,8 @@ public static class CollectionsCatalog
             }
             return Value.Object("StrList", Allocate(c, "StrList", list));
         });
+        }
+        finally { r.EndCompatibilityRegistration(); }
     }
 
     private static void RegisterList<TList, T>(Registry r, string type, string element, Func<TList, List<T>> items, Func<Value, T> get, Func<T, Value> put, Func<T, T, bool> equals)
