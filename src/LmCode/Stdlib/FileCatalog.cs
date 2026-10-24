@@ -44,6 +44,7 @@ public static class FileCatalog
         {
             try
             {
+                if (OperatingSystem.IsWindows() && IsWindowsDevice(text!)) throw Failure(function, path, "invalid argument");
                 if (File.Exists(text) || Directory.Exists(text)) EnsureRegular(function, text);
                 using var stream = new FileStream(text!, append ? FileMode.Append : FileMode.Create, FileAccess.Write, FileShare.Read);
                 stream.Write(bytes); stream.Flush(true); return;
@@ -58,6 +59,7 @@ public static class FileCatalog
         if (TryTextPath(path, out string? text))
         {
             if (text!.Length == 0) return false;
+            if (OperatingSystem.IsWindows() && IsWindowsDevice(text)) return false;
             try
             {
                 var attributes = File.GetAttributes(text!);
@@ -73,8 +75,19 @@ public static class FileCatalog
     }
     private static void EnsureRegular(string function, string path)
     {
+        if (OperatingSystem.IsWindows() && IsWindowsDevice(path)) throw Failure(function, VmString.FromString(path), "invalid argument");
         if (Directory.Exists(path)) throw Failure(function, VmString.FromString(path), "is a directory");
+        if (OperatingSystem.IsWindows() && File.Exists(path))
+        {
+            try
+            {
+                using SafeFileHandle handle = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                if (GetFileType(handle.DangerousGetHandle()) != 1) throw Failure(function, VmString.FromString(path), "invalid argument");
+            }
+            catch (Error) { throw; }
+        }
     }
+    private static bool IsWindowsDevice(string path) => path.StartsWith(@"\\.\", StringComparison.Ordinal) || string.Equals(path, "NUL", StringComparison.OrdinalIgnoreCase);
     private static void ValidatePath(string function, VmString path)
     {
         if (path.Span.IndexOf((byte)0) >= 0) throw Failure(function, path, "invalid argument");
@@ -86,7 +99,7 @@ public static class FileCatalog
     }
     private static bool TryTextPath(VmString path, out string? text)
     {
-        try { text = OperatingSystem.IsWindows() ? new UTF8Encoding(false, true).GetString(path.Span) : null; return OperatingSystem.IsWindows(); }
+        try { text = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() ? new UTF8Encoding(false, true).GetString(path.Span) : null; return OperatingSystem.IsWindows() || OperatingSystem.IsMacOS(); }
         catch (DecoderFallbackException) { text = null; return false; }
     }
     private static Error Failure(string function, VmString path, string reason) => Error.Host($"{function}: {Display(path)}: {(string.IsNullOrEmpty(reason) ? "file operation failed" : reason)}");
@@ -102,6 +115,7 @@ public static class FileCatalog
     [DllImport("libc", SetLastError = true, EntryPoint = "write")] private static extern nint UnixWriteRaw(int fd, byte[] buffer, nuint count);
     [DllImport("libc", SetLastError = true, EntryPoint = "fsync")] private static extern int UnixFsync(int fd);
     [DllImport("libc", SetLastError = true, EntryPoint = "close")] private static extern int UnixClose(int fd);
+    [DllImport("kernel32.dll", SetLastError = true)] private static extern uint GetFileType(IntPtr handle);
     private static byte[] UnixRead(string function, ReadOnlySpan<byte> path)
     {
         byte[] stat = new byte[512];
