@@ -80,7 +80,7 @@ public static class CollectionsCatalog
         });
         r.Method("StrMap", "set", ["string", "string"], "StrMap", static (c, self, a) =>
         {
-            var map = c.Get<StrMap>(self); int i = Find(map, a[0].AsStr());
+            var map = c.Get<StrMap>(self); if (map.Dirty && map.Items.Count > 2 * map.Live + 1024) map.Compact(); int i = Find(map, a[0].AsStr());
             if (i < 0) { map.Positions[a[0].AsStr()] = map.Items.Count; map.Items.Add((a[0].AsStr(), a[1].AsStr())); int index = map.Items.Count; if (index >= map.Fenwick.Length) Array.Resize(ref map.Fenwick, Math.Max(index + 1, map.Fenwick.Length * 2)); map.Fenwick[index] = map.FenwickPrefix(index - 1) - map.FenwickPrefix(index - (index & -index)) + 1; map.FenwickCount = index + 1; ++map.Live; } else map.Items[i] = (map.Items[i].Key, a[1].AsStr());
             return Value.Object("StrMap", self);
         });
