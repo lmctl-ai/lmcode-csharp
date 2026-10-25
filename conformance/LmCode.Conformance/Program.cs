@@ -148,6 +148,11 @@ static class Runner
                 var prefix = $"dsl line {line}{(caught.Column is ushort column ? $":{column}" : "")}: ";
                 if (exactMessage.StartsWith(prefix, StringComparison.Ordinal)) exactMessage = exactMessage[prefix.Length..];
             }
+            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("LMCODE_TRACE")))
+            {
+                foreach (string value in stub.Trace) Console.WriteLine($"TRACE\t{name}\t{value}");
+                if (code.Length != 0) Console.WriteLine($"ERROR\t{name}\t{code}\t{exactMessage}");
+            }
             var ok = kind == "trace" ? ran && stub.Trace.Count == lines.Length && stub.Trace.Zip(lines).All(x => Match(x.First, x.Second)) : kind == "runtime_error" ? loaded && !ran && error.Contains(lines[0], StringComparison.Ordinal) : kind == "runtime_error_exact" ? loaded && !ran && lines.Length == 2 && code == lines[0] && exactMessage == lines[1] : kind == "runtime_error_file" ? loaded && !ran && lines.Length >= 3 && code == lines[0] && exactMessage.StartsWith(lines[1] + ": ", StringComparison.Ordinal) && exactMessage.Contains(lines[2], StringComparison.Ordinal) : kind == "runtime_error_at" ? loaded && !ran && lines.Length >= 4 && code == lines[0] && locationOk && error.Contains(lines[3], StringComparison.Ordinal) : kind == "load_error" && !loaded && error.Contains(lines[0], StringComparison.Ordinal);
             Console.WriteLine((ok ? "ok - " : "FAIL - ") + name + " (" + kind + ")"); if (!ok) { failed++; Console.WriteLine("    error: " + error); }
             if (stub.TempDir.Length != 0) try { Directory.Delete(stub.TempDir, true); } catch { }

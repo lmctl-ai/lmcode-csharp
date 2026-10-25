@@ -11,8 +11,9 @@ static class CollectionsTestingCatalogTests
         CollectionSignatures();
         ListAndMapCallbacks();
         TestingCallbacks();
+        LiveMapEntries();
         Console.WriteLine("PASS collections/testing catalog tests");
-        return 3;
+        return 4;
     }
 
     private static void CollectionSignatures()
@@ -39,6 +40,30 @@ static class CollectionsTestingCatalogTests
         Run(map, ["fn str_map() -> StrMap", "method StrMap.set(string, string) -> StrMap", "method StrMap.key_at(int) -> string", "fn capture_str(string) -> void", "a", "one", "b", "two"], [
             7, 0, 0, 0, 2, 0, 0, 0, 4, 2, 0, 0, 0, 5, 8, 0, 1, 2, 2, 0, 0, 0, 6, 2, 0, 0, 0, 7, 8, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 2, 1, 7, 0, 3, 1, 0x11], 4);
         Require(key is not null && key.Span.SequenceEqual("a"u8), "map insertion order");
+    }
+
+    private static void LiveMapEntries()
+    {
+        var registry = new Registry(false); CollectionsCatalog.RegisterCollections(registry);
+        var context = new Context(); ObjRef saved = default;
+        IReadOnlyList<(VmString Key, VmString Value)>? view = null;
+        string[][] expected = [["a"], ["a", "b"], ["b", "c"]]; int observations = 0;
+        registry.Function("remember", ["StrMap"], "void", (c, args) =>
+        {
+            saved = args[0].AsObj(); view ??= c.Get<StrMap>(saved).Entries;
+            Require(view is not IList<(VmString, VmString)>, "map view cannot be cast to a mutable list");
+            Require(view.Select(item => item.Key.ToString()).SequenceEqual(expected[observations]), "held map view observes live insertion order");
+            Require(view[view.Count - 1].Key.ToString() == expected[observations][^1], "held map view rank lookup");
+            ++observations; return Value.None;
+        });
+        registry.Function("saved", [], "StrMap", (_, _) => Value.Object("StrMap", saved));
+        registry.Function("discard", ["bool"], "void", (_, args) => { Require(args[0].AsBool(), "remove from native view map"); return Value.None; });
+        string[] constants = ["fn str_map() -> StrMap", "method StrMap.set(string, string) -> StrMap", "method StrMap.remove(string) -> bool", "fn remember(StrMap) -> void", "fn saved() -> StrMap", "fn discard(bool) -> void", "a", "one", "b", "two", "c", "three"];
+        void Execute(byte[] code) => Program.Load(Image(constants, code, 6), [], registry).Run(context, registry);
+        Execute([7,0,0,0, 2,0,0,0,6, 2,0,0,0,7, 8,0,1,2, 7,0,3,1, 0x11]);
+        Execute([7,0,4,0, 2,0,0,0,8, 2,0,0,0,9, 8,0,1,2, 7,0,3,1, 0x11]);
+        Execute([7,0,4,0, 2,0,0,0,6, 8,0,2,1, 7,0,5,1, 7,0,4,0, 2,0,0,0,10, 2,0,0,0,11, 8,0,1,2, 7,0,3,1, 0x11]);
+        Require(observations == 3, "all native view transitions observed");
     }
 
     private static void TestingCallbacks()

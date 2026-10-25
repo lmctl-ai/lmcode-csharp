@@ -20,3 +20,11 @@ Run the optional string catalog fixtures with
 `dotnet run --project conformance/LmCode.Conformance -- conformance/stdlib-vectors`.
 `scripts/sync-vectors.sh` refreshes both core and catalog fixtures from the C++
 checkout and records their source commit. CI runs both on all five platforms.
+
+The catalog suite includes 41 seeded property vectors (seeds 7, 42, 20261024),
+with independently calculated byte/numeric/container expectations. CI runs these
+through the ordinary catalog conformance step. `LMCODE_TRACE=1` emits actual
+trace/error records for byte-exact cross-SDK comparisons; the source generator
+and larger 16-seed/64-round mode live in lmcode-cpp `scripts/gen-std-corpus.py`
+and `scripts/diff-stdlib.py`. The synchronized suite has 118 catalog cases and
+51 core cases.
