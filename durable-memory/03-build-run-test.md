@@ -9,8 +9,8 @@ Use `scripts/sync-vectors.sh` to refresh without recompiling vectors.
 
 Native publish: `dotnet publish examples/Greeter -r linux-x64 -c Release`.
 The Greeter project enables PublishAot. On this development machine clang 19 is in
-`~/toolchains/llvm19/bin`; specify `-p:CppCompilerAndLinker=/home/mma/toolchains/llvm19/bin/clang`
-and `-p:ObjCopyName=/home/mma/toolchains/llvm19/bin/llvm-objcopy` when needed.
+`~/toolchains/llvm19/bin`; specify `-p:CppCompilerAndLinker=$HOME/toolchains/llvm19/bin/clang`
+and `-p:ObjCopyName=$HOME/toolchains/llvm19/bin/llvm-objcopy` when needed.
 The local native Greeter was executed with the compiled hello.dslb and returned
 `{"ok": true, "result": null}`. It dynamically links glibc and libm.
 CI has native runner/publish lanes for linux-x64, linux-arm64, osx-arm64, osx-x64,
