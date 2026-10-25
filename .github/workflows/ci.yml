@@ -37,7 +37,7 @@ jobs:
           node-version: 24
       - name: lmscript compiler
         run: |
-          npm i -g @lmctl-ai/lmctl@0.2.419
+          npm i -g @lmctl-ai/lmctl@0.2.420
           lmscript --version
       - name: Canonical standard schema
         run: scripts/sync-std.sh --verify
