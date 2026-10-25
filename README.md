@@ -13,12 +13,12 @@ SDK commit and matching compiler version.
 
 | **Bytecode Conformance Suite** | **Unit Tests & Invariants** |
 | --- | --- |
-| <img src="docs/images/conformance.png" width="440"> | <img src="docs/images/unit-tests.png" width="440"> |
+| <img src="docs/images/conformance.png" width="440" alt="Bytecode Conformance Suite"> | <img src="docs/images/unit-tests.png" width="440" alt="Unit Tests & Invariants"> |
 | All 51 core bytecode vectors pass across opcodes, types, error paths, and control flow.<br>`dotnet run --project conformance/LmCode.Conformance -- conformance/vectors` | 136 unit tests and standard catalog tests covering C# SDK invariants.<br>`dotnet test` |
 
 | **Greeter Example Host** | **Same Bytecode, Four Runtimes** |
 | --- | --- |
-| <img src="docs/images/greeter-example.png" width="440"> | <img src="docs/images/same-bytecode-four-runtimes.png" width="440"> |
+| <img src="docs/images/greeter-example.png" width="440" alt="Greeter Example Host"> | <img src="docs/images/same-bytecode-four-runtimes.png" width="440" alt="Same Bytecode, Four Runtimes"> |
 | Minimal embedding host compiling and executing DSL logic in .NET 8 / C#.<br>`dotnet run --project examples/Greeter -- --dsl hello.dslb` | Cross-language parity: C++, Rust, Go, and C# run the exact same bytecode.<br>`PASS 51/51 vectors across 4 runtimes` |
 
 ## Embed
