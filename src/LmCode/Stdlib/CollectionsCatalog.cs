@@ -13,6 +13,7 @@ public sealed class StrMap
     internal readonly HashSet<int> Deleted = [];
     internal int Live;
     internal bool Dirty;
+    internal int[] Fenwick = [0];
     public IReadOnlyList<(VmString Key, VmString Value)> Entries { get { Compact(); return Items; } }
     internal void Compact()
     {
@@ -20,8 +21,11 @@ public sealed class StrMap
         var items = new List<(VmString Key, VmString Value)>(Live);
         var positions = new Dictionary<VmString, int>(Live);
         for (int i = 0; i < Items.Count; ++i) if (!Deleted.Contains(i)) { positions[Items[i].Key] = items.Count; items.Add(Items[i]); }
-        Items.Clear(); Items.AddRange(items); Positions.Clear(); foreach (var pair in positions) Positions[pair.Key] = pair.Value; Deleted.Clear(); Dirty = false;
+        Items.Clear(); Items.AddRange(items); Positions.Clear(); foreach (var pair in positions) Positions[pair.Key] = pair.Value; Deleted.Clear(); Dirty = false; Fenwick = new int[Items.Count + 1]; for (int i = 1; i <= Items.Count; ++i) FenwickAdd(i, 1);
     }
+    internal int FenwickPrefix(int index) { int total = 0; for (; index > 0; index -= index & -index) total += Fenwick[index]; return total; }
+    internal void FenwickAdd(int index, int delta) { for (; index < Fenwick.Length; index += index & -index) Fenwick[index] += delta; }
+    internal int FenwickSelect(int target) { int index = 0, bit = 1; while ((bit << 1) < Fenwick.Length) bit <<= 1; for (; bit > 0; bit >>= 1) { int next = index + bit; if (next < Fenwick.Length && Fenwick[next] < target) { index = next; target -= Fenwick[next]; } } return index; }
 }
 
 /// <summary>Optional byte-oriented collection host functions.</summary>
@@ -65,21 +69,20 @@ public static class CollectionsCatalog
         r.Method("StrMap", "set", ["string", "string"], "StrMap", static (c, self, a) =>
         {
             var map = c.Get<StrMap>(self); int i = Find(map, a[0].AsStr());
-            if (i < 0) { map.Positions[a[0].AsStr()] = map.Items.Count; map.Items.Add((a[0].AsStr(), a[1].AsStr())); ++map.Live; } else map.Items[i] = (map.Items[i].Key, a[1].AsStr());
+            if (i < 0) { map.Positions[a[0].AsStr()] = map.Items.Count; map.Items.Add((a[0].AsStr(), a[1].AsStr())); int index = map.Items.Count; map.Fenwick = [.. map.Fenwick, map.FenwickPrefix(index - 1) - map.FenwickPrefix(index - (index & -index)) + 1]; ++map.Live; } else map.Items[i] = (map.Items[i].Key, a[1].AsStr());
             return Value.Object("StrMap", self);
         });
         r.Method("StrMap", "key_at", ["int"], "string", static (c, self, a) =>
         {
             var map = c.Get<StrMap>(self); long wanted = a[0].AsInt(); if (wanted < 0 || wanted >= map.Live) throw Error.Host($"StrMap.key_at: index out of range: {wanted.ToString(CultureInfo.InvariantCulture)}");
-            long seen = 0; for (int i = 0; i < map.Items.Count; ++i) { if (map.Deleted.Contains(i)) continue; if (seen++ == wanted) return Value.Str(map.Items[i].Key); }
-            throw Error.Host($"StrMap.key_at: index out of range: {wanted.ToString(CultureInfo.InvariantCulture)}");
+            return Value.Str(map.Items[map.FenwickSelect((int)wanted + 1)].Key);
         });
         r.Method("StrMap", "remove", ["string"], "bool", static (c, self, a) =>
         {
             var map = c.Get<StrMap>(self); int i = Find(map, a[0].AsStr());
-            if (i < 0) return Value.Bool(false); map.Positions.Remove(a[0].AsStr()); map.Deleted.Add(i); --map.Live; map.Dirty = true; return Value.Bool(true);
+            if (i < 0) return Value.Bool(false); map.Positions.Remove(a[0].AsStr()); map.Deleted.Add(i); --map.Live; map.Dirty = true; map.FenwickAdd(i + 1, -1); return Value.Bool(true);
         });
-        r.Method("StrMap", "clear", [], "StrMap", static (c, self, _) => { var map = c.Get<StrMap>(self); map.Items.Clear(); map.Positions.Clear(); map.Deleted.Clear(); map.Live = 0; map.Dirty = false; return Value.Object("StrMap", self); });
+        r.Method("StrMap", "clear", [], "StrMap", static (c, self, _) => { var map = c.Get<StrMap>(self); map.Items.Clear(); map.Positions.Clear(); map.Deleted.Clear(); map.Live = 0; map.Dirty = false; map.Fenwick = [0]; return Value.Object("StrMap", self); });
 
         r.Function("str_list", [], "StrList", static (c, _) => Value.Object("StrList", Allocate(c, "StrList", new StrList())));
         r.Function("int_list", [], "IntList", static (c, _) => Value.Object("IntList", Allocate(c, "IntList", new IntList())));
