@@ -120,25 +120,44 @@ static class StringCatalogTests
             Console.WriteLine($"SKIP {catalog} compiler parity: lmscript is absent from PATH");
             return;
         }
+        // lmscript 0.2.420 builds std into the compiler: --dsl-signatures emits
+        // the full std set merged with the schema's functions, while
+        // --without-std emits only what the schema adds on top of std.
+        string[] all = CompilerSignatures(compiler, schemaPath, false);
+        string[] hostOnly = CompilerSignatures(compiler, schemaPath, true);
+        var stdRegistry = new Registry(false);
+        StandardCatalog.RegisterStd(stdRegistry);
+        var std = stdRegistry.Signatures();
+        var stdSet = std.ToHashSet(StringComparer.Ordinal);
+        var registrySet = signatures.ToHashSet(StringComparer.Ordinal);
+        Require(hostOnly.All(registrySet.Contains), $"{catalog} compiler declares functions the registry lacks: {string.Join(", ", hostOnly.Where(sig => !registrySet.Contains(sig)).Order(StringComparer.Ordinal))}");
+        string[] registryForeign = registrySet.Except(hostOnly).Where(sig => !stdSet.Contains(sig)).Order(StringComparer.Ordinal).ToArray();
+        Require(registryForeign.Length == 0, $"{catalog} registry signatures missing from compiler std: {string.Join(", ", registryForeign)}");
+        var expected = std.Concat(hostOnly).Order(StringComparer.Ordinal).ToArray();
+        Require(all.SequenceEqual(expected), $"{catalog} compiler signatures differ from std registry: missing [{string.Join(", ", expected.Except(all).Order(StringComparer.Ordinal))}], extra [{string.Join(", ", all.Except(expected).Order(StringComparer.Ordinal))}]");
+        Console.WriteLine($"PASS {catalog} compiler/registry signature parity");
+    }
+
+    private static string[] CompilerSignatures(string compiler, string schemaPath, bool withoutStd)
+    {
         var start = new ProcessStartInfo(compiler) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
         if (OperatingSystem.IsWindows() && (compiler.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase) || compiler.EndsWith(".bat", StringComparison.OrdinalIgnoreCase)))
         {
             start.FileName = "cmd.exe";
-            start.Arguments = $"/d /s /c \"\"{compiler}\" --dsl-signatures \"{schemaPath}\"\"";
+            start.Arguments = $"/d /s /c \"\"{compiler}\" --dsl-signatures \"{schemaPath}\"{(withoutStd ? " --without-std" : "")}\"\"";
         }
         else
         {
             start.ArgumentList.Add("--dsl-signatures");
             start.ArgumentList.Add(schemaPath);
+            if (withoutStd) start.ArgumentList.Add("--without-std");
         }
         using var process = Process.Start(start) ?? throw new Exception("cannot start lmscript");
         var stdout = process.StandardOutput.ReadToEndAsync();
         var stderr = process.StandardError.ReadToEndAsync();
         process.WaitForExit();
         Require(process.ExitCode == 0, "lmscript --dsl-signatures failed: " + stderr.GetAwaiter().GetResult());
-        string expected = string.Join('\n', signatures) + "\n";
-        Require(stdout.GetAwaiter().GetResult().Replace("\r\n", "\n", StringComparison.Ordinal) == expected, "compiler signatures differ from registry");
-        Console.WriteLine($"PASS {catalog} compiler/registry signature parity");
+        return stdout.GetAwaiter().GetResult().Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n', StringSplitOptions.RemoveEmptyEntries);
     }
 
     private static string? FindCompiler(string name)
