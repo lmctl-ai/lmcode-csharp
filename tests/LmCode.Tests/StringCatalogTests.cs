@@ -144,7 +144,7 @@ static class StringCatalogTests
         if (OperatingSystem.IsWindows() && (compiler.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase) || compiler.EndsWith(".bat", StringComparison.OrdinalIgnoreCase)))
         {
             start.FileName = "cmd.exe";
-            start.Arguments = $"/d /s /c \"\"{compiler}\" --dsl-signatures \"{schemaPath}\"{(withoutStd ? " --without-std" : "")}\"\"";
+            start.Arguments = $"/d /s /c \"\"{compiler}\" --dsl-signatures \"{schemaPath}\"{(withoutStd ? " --without-std" : "")}\"";
         }
         else
         {
