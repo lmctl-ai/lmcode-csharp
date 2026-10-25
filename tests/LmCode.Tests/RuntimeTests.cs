@@ -8,6 +8,7 @@ static class RuntimeTests
     public static bool Run()
     {
         RawVmStringCallback();
+        OwnedVmStringHelpers();
         IntegerEdges();
         DuplicateBinding();
         SchemaMismatch();
@@ -39,6 +40,12 @@ static class RuntimeTests
         Require(seen is not null && seen.Span.SequenceEqual(new byte[] { 0, 255, 192, 128, 42, 32, 116, 97, 105, 108 }));
         // The constructor must own a copy, including invalid UTF-8 sequences.
         var immutable = new VmString(raw); raw[0] = 99; Require(immutable.Span[0] == 0);
+    }
+    private static void OwnedVmStringHelpers()
+    {
+        var left = VmString.FromString("left"); var right = VmString.FromString("right"); var joined = VmString.Concat(left, right);
+        Require(joined.Span.SequenceEqual("leftright"u8));
+        Require(VmString.FromString("é").Span.SequenceEqual(new byte[] { 0xc3, 0xa9 }));
     }
     private static void IntegerEdges()
     {

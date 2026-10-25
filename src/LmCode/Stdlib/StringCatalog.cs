@@ -57,7 +57,7 @@ public static class StringCatalog
             to.Span.CopyTo(result.AsSpan(output)); output += to.Length;
             at = found + from.Length;
         }
-        return new VmString(result);
+        return VmString.FromOwned(result);
     }
 
     public static VmString StrTrim(VmString s)
@@ -76,7 +76,7 @@ public static class StringCatalog
         int resultLength = checked((int)(s.Length * count));
         var result = new byte[resultLength];
         for (long i = 0; i < count; ++i) s.Span.CopyTo(result.AsSpan(checked((int)(i * s.Length))));
-        return new VmString(result);
+        return VmString.FromOwned(result);
     }
 
     public static bool StrIsInt(VmString s) => TryParseInt(s.Span, out _);
@@ -132,7 +132,7 @@ public static class StringCatalog
         for (int i = 0; i < result.Length; ++i)
             if (upper ? result[i] is >= (byte)'a' and <= (byte)'z' : result[i] is >= (byte)'A' and <= (byte)'Z')
                 result[i] = (byte)(result[i] + (upper ? 'A' - 'a' : 'a' - 'A'));
-        return new VmString(result);
+        return VmString.FromOwned(result);
     }
 
     private static bool IsTrimByte(byte value) => value == (byte)' ' || value is >= 9 and <= 13;

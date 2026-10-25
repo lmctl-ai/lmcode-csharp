@@ -147,7 +147,7 @@ public static class CollectionsCatalog
         int total = 0; for (int i = 0; i < items.Count; ++i) total = checked(total + items[i].Length + (i == 0 ? 0 : separator.Length));
         var bytes = new byte[total]; int at = 0;
         for (int i = 0; i < items.Count; ++i) { if (i != 0) { separator.Span.CopyTo(bytes.AsSpan(at)); at += separator.Length; } items[i].Span.CopyTo(bytes.AsSpan(at)); at += items[i].Length; }
-        return new VmString(bytes);
+        return VmString.FromOwned(bytes);
     }
     private static ObjRef Allocate<T>(Context context, string type, T value) where T : class
     {

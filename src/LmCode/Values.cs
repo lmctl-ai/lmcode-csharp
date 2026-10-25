@@ -6,15 +6,17 @@ public sealed class VmString : IEquatable<VmString>
 {
     private readonly byte[] bytes;
     public VmString(ReadOnlySpan<byte> bytes) { this.bytes = bytes.ToArray(); }
+    private VmString(byte[] bytes, bool owned) { this.bytes = bytes; }
+    internal static VmString FromOwned(byte[] bytes) => new(bytes, true);
     public ReadOnlySpan<byte> Span => bytes;
     public int Length => bytes.Length;
-    public static VmString FromString(string text) => new(Encoding.UTF8.GetBytes(text));
+    public static VmString FromString(string text) => FromOwned(Encoding.UTF8.GetBytes(text));
     public override string ToString() => Encoding.UTF8.GetString(bytes);
     public static VmString Concat(VmString a, VmString b)
     {
         byte[] result = new byte[a.Length + b.Length];
         a.Span.CopyTo(result); b.Span.CopyTo(result.AsSpan(a.Length));
-        return new(result);
+        return FromOwned(result);
     }
     public bool Equals(VmString? other) => other is not null && Span.SequenceEqual(other.Span);
     public override bool Equals(object? obj) => obj is VmString value && Equals(value);

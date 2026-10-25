@@ -14,7 +14,7 @@ public static class FileCatalog
         r.BeginCompatibilityRegistration();
         try
         {
-            r.Function("file_read", ["string"], "string", static (_, a) => Value.Str(new VmString(Read("file_read", a[0].AsStr()))));
+            r.Function("file_read", ["string"], "string", static (_, a) => Value.Str(VmString.FromOwned(Read("file_read", a[0].AsStr()))));
             r.Function("file_write", ["string", "string"], "void", static (_, a) => { Write("file_write", a[0].AsStr(), a[1].AsStr().Span, append: false); return Value.None; });
             r.Function("file_append", ["string", "string"], "void", static (_, a) => { Write("file_append", a[0].AsStr(), a[1].AsStr().Span, append: true); return Value.None; });
             r.Function("file_exists", ["string"], "bool", static (_, a) => Value.Bool(Exists("file_exists", a[0].AsStr())));
