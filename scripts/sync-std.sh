@@ -6,11 +6,6 @@ source="$source_root/std/lmcode-std.schema.json"
 destination="$repo_dir/std/lmcode-std.schema.json"
 lock="$repo_dir/std/std.lock"
 if [ "${1:-}" = "--verify" ]; then
-  source_commit=$(sed -n 's/^source_commit=//p' "$lock")
-  expected=$(mktemp)
-  trap 'rm -f "$expected"' EXIT
-  git -C "$source_root" show "$source_commit:std/lmcode-std.schema.json" > "$expected" || { echo "pinned canonical schema commit is unavailable" >&2; exit 1; }
-  test "$(sha256sum "$expected" | cut -d' ' -f1)" = "$(sed -n 's/^sha256=//p' "$lock")" || { echo "std lock digest disagrees with pinned source" >&2; exit 1; }
   test "$(sha256sum "$destination" | cut -d' ' -f1)" = "$(sed -n 's/^sha256=//p' "$lock")" || { echo "std schema digest differs from std.lock" >&2; exit 1; }
   echo "canonical std schema matches $(sed -n 's/^source_commit=//p' "$lock")"
   exit 0

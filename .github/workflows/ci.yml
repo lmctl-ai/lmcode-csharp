@@ -35,10 +35,21 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
-      - name: lmscript compiler
+      - name: Checkout authoritative lmctl-mono compiler
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          repository: lmctlhq/lmctl-mono
+          ref: 0ce49614a3236b88495652c7c892bba82bb3551d
+          path: .ci/lmctl-mono
+          persist-credentials: false
+      - name: Build authoritative lmscript
         run: |
-          npm i -g @lmctl-ai/lmctl@0.2.426
-          lmscript --version
+          cd .ci/lmctl-mono
+          npm ci --ignore-scripts
+          npm run build
+          echo "$GITHUB_WORKSPACE/.ci/lmctl-mono/bin" >> "$GITHUB_PATH"
+          ./bin/lmscript --version
+          test "$(./bin/lmscript --dsl-signatures "$GITHUB_WORKSPACE/std/lmcode-std.schema.json" | wc -l)" -eq 171
       - name: Canonical standard schema
         run: scripts/sync-std.sh --verify
       - name: Build and static analysis
