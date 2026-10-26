@@ -15,6 +15,7 @@ static class Tests
             ("Loader rejects truncated input", LoaderRejectsTruncated),
             ("Loader rejects bad magic", LoaderRejectsBadMagic),
             ("Report JSON includes location", ReportJsonLocation),
+            ("Public collection constructors", CollectionConstructors),
         };
         foreach (var (name, check) in checks)
             if (!check()) return Fail(name);
@@ -62,6 +63,20 @@ static class Tests
         var e = new Error("RUN_ERROR", "bad"); e.Locate(7, 3);
         var json = Reports.ErrorJson("run", e);
         return json.Contains("\"code\": \"RUN_ERROR\"", StringComparison.Ordinal) && json.Contains("\"line\": 7", StringComparison.Ordinal) && json.Contains("\"column\": 3", StringComparison.Ordinal);
+    }
+    static bool CollectionConstructors()
+    {
+        var raw = new VmString(new byte[] { 0, 255 });
+        var strings = new LmCode.Stdlib.StrList([raw]);
+        var ints = new LmCode.Stdlib.IntList([1, long.MaxValue]);
+        var floats = new LmCode.Stdlib.FloatList([1.5, -0.0]);
+        var map = new LmCode.Stdlib.StrMap([
+            (VmString.FromString("a"), VmString.FromString("one")),
+            (VmString.FromString("b"), VmString.FromString("two")),
+            (VmString.FromString("a"), VmString.FromString("updated"))]);
+        return strings.Values[0].Span.SequenceEqual(raw.Span) && ints.Values.SequenceEqual([1, long.MaxValue]) &&
+            floats.Values.Count == 2 && BitConverter.DoubleToInt64Bits(floats.Values[1]) == BitConverter.DoubleToInt64Bits(-0.0) &&
+            map.Entries.Select(x => x.Key.ToString()).SequenceEqual(["a", "b"]) && map.Entries[0].Value.ToString() == "updated";
     }
     static int Fail(string message) { Console.Error.WriteLine("FAIL " + message); return 1; }
 }
