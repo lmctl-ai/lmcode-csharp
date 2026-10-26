@@ -8,7 +8,7 @@ public static class EncodingCatalog
 
     public static VmString Base64Encode(VmString input)
     {
-        int groups = checked((input.Length + 2) / 3);
+        int groups = CheckedBase64Groups(input.Length);
         byte[] output = new byte[checked(groups * 4)];
         int at = 0;
         for (int i = 0; i < input.Length; i += 3)
@@ -22,7 +22,7 @@ public static class EncodingCatalog
             output[at++] = remaining > 1 ? (byte)Alphabet[((b & 15) << 2) | (c >> 6)] : (byte)'=';
             output[at++] = remaining > 2 ? (byte)Alphabet[c & 63] : (byte)'=';
         }
-        return new VmString(output);
+        return VmString.FromOwned(output);
     }
 
     public static VmString Base64Decode(VmString input)
@@ -55,19 +55,20 @@ public static class EncodingCatalog
             if (d < 0) InvalidBase64();
             output[at++] = (byte)((c << 6) | d);
         }
-        return new VmString(output.AsSpan(0, at));
+        return VmString.FromOwned(output.AsSpan(0, at).ToArray());
     }
 
     public static VmString HexEncode(VmString input)
     {
-        byte[] output = new byte[checked(input.Length * 2)];
+        CheckedHexSize(input.Length);
+        byte[] output = new byte[input.Length * 2];
         int at = 0;
         foreach (byte value in input.Span)
         {
             output[at++] = (byte)Hex[value >> 4];
             output[at++] = (byte)Hex[value & 15];
         }
-        return new VmString(output);
+        return VmString.FromOwned(output);
     }
 
     public static VmString HexDecode(VmString input)
@@ -114,4 +115,16 @@ public static class EncodingCatalog
 
     private static void InvalidBase64() => throw Error.Host("str_base64_decode: invalid encoding");
     private static void InvalidHex() => throw Error.Host("str_hex_decode: invalid encoding");
+
+    internal static int CheckedBase64Groups(int inputLength)
+    {
+        long groups = inputLength / 3L + (inputLength % 3 == 0 ? 0 : 1);
+        if (groups > Array.MaxLength / 4L) throw Error.Host("str_base64_encode: size overflow");
+        return (int)groups;
+    }
+
+    internal static void CheckedHexSize(int inputLength)
+    {
+        if (inputLength > Array.MaxLength / 2) throw Error.Host("str_hex_encode: size overflow");
+    }
 }
