@@ -21,6 +21,7 @@ dotnet publish examples/Greeter -r linux-x64 -c Release # NativeAOT standalone p
 | [03-build-run-test.md](03-build-run-test.md) | Build targets, test execution, NativeAOT compiler flags, vector sync |
 | [04-gotchas.md](04-gotchas.md) | Common traps, AOT trimming, schema byte parity rules |
 | [05-open-items.md](05-open-items.md) | Future improvements and roadmap |
+| [06-stdlib-catalog.md](06-stdlib-catalog.md) | Catalog v2 semantics, ownership, compiler evidence and validation |
 
 ## Conformance vector sync
 

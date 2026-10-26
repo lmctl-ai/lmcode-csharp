@@ -133,9 +133,28 @@ static class StringCatalogTests
         Require(hostOnly.All(registrySet.Contains), $"{catalog} compiler declares functions the registry lacks: {string.Join(", ", hostOnly.Where(sig => !registrySet.Contains(sig)).Order(StringComparer.Ordinal))}");
         string[] registryForeign = registrySet.Except(hostOnly).Where(sig => !stdSet.Contains(sig)).Order(StringComparer.Ordinal).ToArray();
         Require(registryForeign.Length == 0, $"{catalog} registry signatures missing from compiler std: {string.Join(", ", registryForeign)}");
+        // Published 0.2.426 still bundles v1. Public CI opts into explicit
+        // canonical declarations; private main is also tested without this mode.
+        bool explicitStd = Environment.GetEnvironmentVariable("LMCODE_COMPILER_EXPLICIT_STD") == "1";
+        if (explicitStd)
+        {
+            // Merge declarations structurally without touching source schemas.
+            var merged = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllBytes(Fixture("lmcode-std.schema.json")))!.AsObject();
+            var fragment = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllBytes(schemaPath))!.AsObject();
+            foreach (string area in new[] { "types", "functions", "context" })
+                foreach (var declaration in fragment[area]!.AsObject())
+                    merged[area]![declaration.Key] = declaration.Value!.DeepClone();
+            string temporary = Path.Combine(Path.GetTempPath(), "lmcode-parity-" + Guid.NewGuid().ToString("N") + ".json");
+            try
+            {
+                File.WriteAllText(temporary, merged.ToJsonString());
+                all = CompilerSignatures(compiler, temporary, false);
+            }
+            finally { File.Delete(temporary); }
+        }
         var expected = std.Concat(hostOnly).Order(StringComparer.Ordinal).ToArray();
         Require(all.SequenceEqual(expected), $"{catalog} compiler signatures differ from std registry: missing [{string.Join(", ", expected.Except(all).Order(StringComparer.Ordinal))}], extra [{string.Join(", ", all.Except(expected).Order(StringComparer.Ordinal))}]");
-        Console.WriteLine($"PASS {catalog} compiler/registry signature parity");
+        Console.WriteLine($"PASS {catalog} compiler/registry signature parity ({std.Length}, {(explicitStd ? "explicit canonical schema" : "implicit compiler bundle")})");
     }
 
     private static string[] CompilerSignatures(string compiler, string schemaPath, bool withoutStd)

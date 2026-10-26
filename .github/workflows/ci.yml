@@ -22,6 +22,8 @@ jobs:
           - { os: windows-2022, rid: win-x64 }
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.rid }}
+    env:
+      LMCODE_COMPILER_EXPLICIT_STD: "1"
     defaults:
       run:
         shell: bash
@@ -48,7 +50,7 @@ jobs:
         run: dotnet test -c Release
       - name: Conformance
         run: dotnet run -c Release --project conformance/LmCode.Conformance -- conformance/vectors
-      - name: String catalog conformance
+      - name: Standard catalog conformance
         run: dotnet run -c Release --project conformance/LmCode.Conformance -- conformance/stdlib-vectors
       - name: NativeAOT publish
         run: dotnet publish examples/Greeter -r ${{ matrix.rid }} -c Release -p:PublishAot=true -p:IlcTreatWarningsAsErrors=true -o artifacts/greeter
@@ -60,3 +62,8 @@ jobs:
         run: |
           dotnet publish tests/LmCode.Tests -r ${{ matrix.rid }} -c Release -p:PublishAot=true -p:IlcTreatWarningsAsErrors=true -o artifacts/catalog-tests
           ./artifacts/catalog-tests/LmCode.Tests --string-catalog
+      - name: NativeAOT full conformance
+        run: |
+          dotnet publish conformance/LmCode.Conformance -r ${{ matrix.rid }} -c Release -p:PublishAot=true -p:IlcTreatWarningsAsErrors=true -o artifacts/conformance
+          ./artifacts/conformance/LmCode.Conformance conformance/vectors
+          ./artifacts/conformance/LmCode.Conformance conformance/stdlib-vectors

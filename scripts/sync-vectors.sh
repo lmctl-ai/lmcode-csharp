@@ -1,24 +1,18 @@
 #!/usr/bin/env sh
 set -eu
 repo_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-source_root=${LMCODE_CPP_DIR:-"$repo_dir/../lmcode-cpp"}/conformance
-core_source="$source_root/vectors"
-catalog_source="$source_root/stdlib-vectors"
-core_dest="$repo_dir/conformance/vectors"
-catalog_dest="$repo_dir/conformance/stdlib-vectors"
-if [ ! -d "$core_source" ] || [ ! -d "$catalog_source" ]; then
-  echo "vector source not found under: $source_root" >&2
-  exit 1
-fi
-rm -rf "$core_dest" "$catalog_dest"
-mkdir -p "$core_dest" "$catalog_dest"
-cp -a "$core_source"/. "$core_dest"/
-cp -a "$catalog_source"/. "$catalog_dest"/
-if git -C "${source_root%/conformance}" rev-parse --short HEAD >/dev/null 2>&1; then
-  git -C "${source_root%/conformance}" rev-parse HEAD > "$core_dest/SOURCE_COMMIT"
-  git -C "${source_root%/conformance}" rev-parse HEAD > "$catalog_dest/SOURCE_COMMIT"
-else
-  printf '%s\n' 'unknown (source is not a git checkout)' > "$core_dest/SOURCE_COMMIT"
-  printf '%s\n' 'unknown (source is not a git checkout)' > "$catalog_dest/SOURCE_COMMIT"
-fi
-echo "synced core and catalog vectors from $source_root"
+source_root=${LMCODE_CPP_DIR:-"$repo_dir/../lmcode-cpp"}
+commit=$(git -C "$source_root" rev-parse HEAD)
+scratch=$(mktemp -d)
+trap 'rm -rf "$scratch"' EXIT
+# Always read committed bytes: an in-progress upstream vector cannot enter a pin.
+git -C "$source_root" archive --format=tar "$commit" conformance/vectors conformance/stdlib-vectors > "$scratch/vectors.tar"
+tar -xf "$scratch/vectors.tar" -C "$scratch"
+for suite in vectors stdlib-vectors; do
+  destination="$repo_dir/conformance/$suite"
+  rm -rf "$destination"
+  mkdir -p "$destination"
+  cp -a "$scratch/conformance/$suite"/. "$destination"/
+  printf '%s\n' "$commit" > "$destination/SOURCE_COMMIT"
+done
+echo "synced committed core and catalog vectors at $commit"

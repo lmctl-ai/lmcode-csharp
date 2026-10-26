@@ -76,7 +76,7 @@ public sealed class StrMap
 public static class CollectionsCatalog
 {
     private const int MaxObjects = 65536;
-    private sealed class State { public int Count; public readonly List<ObjRef> References = []; }
+    private sealed class State { public int Count; public readonly List<ObjRef> References = []; public readonly Dictionary<object, ObjRef> Borrowed = new(ReferenceEqualityComparer.Instance); }
     private static readonly ConditionalWeakTable<Context, State> States = new();
 
     public static void RegisterCollections(Registry r, bool defaultOwned = false)
@@ -181,15 +181,26 @@ public static class CollectionsCatalog
         for (int i = 0; i < items.Count; ++i) { if (i != 0) { separator.Span.CopyTo(bytes.AsSpan(at)); at += separator.Length; } items[i].Span.CopyTo(bytes.AsSpan(at)); at += items[i].Length; }
         return VmString.FromOwned(bytes);
     }
-    private static ObjRef Allocate<T>(Context context, string type, T value) where T : class
+    internal static ObjRef Allocate<T>(Context context, string type, T value) where T : class
     {
         State state = States.GetOrCreateValue(context);
         if (state.Count >= MaxObjects) throw Error.Host($"{type} object limit exceeded (65536)");
-        ++state.Count; ObjRef reference = context.InsertCollection(type, value); state.References.Add(reference); return reference;
+        ++state.Count; ObjRef reference = context.InsertCollection(type, value); state.References.Add(reference); state.Borrowed[value] = reference; return reference;
+    }
+    // Immutable Json navigation borrows nodes without spending another root
+    // allocation. Cache by reference so repeated navigation preserves identity.
+    internal static ObjRef Borrow(Context context, string type, object value)
+    {
+        State state = States.GetOrCreateValue(context);
+        if (state.Borrowed.TryGetValue(value, out ObjRef existing)) return existing;
+        ObjRef reference = context.InsertCollection(type, value);
+        state.References.Add(reference);
+        state.Borrowed.Add(value, reference);
+        return reference;
     }
     internal static void BeginRun(Context context)
     {
-        if (States.TryGetValue(context, out State? state)) { foreach (ObjRef reference in state.References) context.ReleaseCollection(reference); state.References.Clear(); state.Count = 0; }
+        if (States.TryGetValue(context, out State? state)) { foreach (ObjRef reference in state.References) context.ReleaseCollection(reference); state.References.Clear(); state.Borrowed.Clear(); state.Count = 0; }
     }
     internal static void EndRun(Context context) => BeginRun(context);
     internal static ObjRef AllocateStrList(Context context, StrList list) => Allocate(context, "StrList", list);
