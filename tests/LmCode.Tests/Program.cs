@@ -27,7 +27,8 @@ static class Tests
         int standard = StandardRegistryTests.Run();
         int files = FileCatalogTests.Run();
         int v2 = CatalogV2Tests.Run();
-        Console.WriteLine($"PASS unit tests ({checks.Length + 6 + verified + catalog + collections + math + standard + files + v2})"); return 0;
+        int encoding = EncodingCatalogTests.Run();
+        Console.WriteLine($"PASS unit tests ({checks.Length + 6 + verified + catalog + collections + math + standard + files + v2 + encoding})"); return 0;
     }
 
     static bool RawBytes()

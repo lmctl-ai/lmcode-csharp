@@ -8,14 +8,14 @@ static class StandardRegistryTests
     public static int Run()
     {
         var standard = new Registry();
-        Require(standard.Signatures().Length == 171 && standard.HostSignatures().Length == 0, "default standard surface");
+        Require(standard.Signatures().Length == 181 && standard.HostSignatures().Length == 0, "default standard surface");
         Require(standard.Signatures().SequenceEqual(CanonicalSignatures()), "canonical std exact surface");
         standard.CheckSchemaSignatures(CanonicalSignatures());
         var optout = new Registry(includeStd: false);
         Require(optout.Signatures().Length == 0, "opt-out registry");
         StandardCatalog.RegisterStd(optout); StandardCatalog.RegisterStd(optout);
-        Require(optout.Signatures().Length == 171, "idempotent standard binder");
-        Require(optout.StdSignatures().Length == 171 && Std.Signatures.Count == 171, "installed standard signatures");
+        Require(optout.Signatures().Length == 181, "idempotent standard binder");
+        Require(optout.StdSignatures().Length == 181 && Std.Signatures.Count == 181, "installed standard signatures");
         var overrideRegistry = new Registry();
         try { overrideRegistry.Function("str_len", ["string"], "int", (_, _) => Value.Int(99)); throw new Exception("builtin override accepted as ordinary duplicate"); }
         catch (Error e) when (e.Code == "LOAD_UNBOUND") { }
@@ -40,7 +40,7 @@ static class StandardRegistryTests
         string expectedHash = File.ReadAllLines(Path.Combine(AppContext.BaseDirectory, "Fixtures", "std.lock")).Single(line => line.StartsWith("sha256=", StringComparison.Ordinal))[7..];
         Require(Convert.ToHexString(SHA256.HashData(bytes)).Equals(expectedHash, StringComparison.OrdinalIgnoreCase), "canonical std digest");
         using var doc = JsonDocument.Parse(bytes);
-        Require(doc.RootElement.GetProperty("name").GetString() == "lmcode_std_v2", "canonical std version");
+        Require(doc.RootElement.GetProperty("name").GetString() == "lmcode_std_v3", "canonical std version");
         var result = new List<string>();
         foreach (var type in doc.RootElement.GetProperty("types").EnumerateObject())
             foreach (var method in type.Value.GetProperty("methods").EnumerateObject())

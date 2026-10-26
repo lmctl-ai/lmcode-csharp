@@ -19,7 +19,7 @@ static class CollectionsTestingCatalogTests
     private static void CollectionSignatures()
     {
         var r = new Registry(false); CollectionsCatalog.RegisterCollections(r);
-        Require(r.Signatures().Length == 35, "collection signature count");
+        Require(r.Signatures().Length == 37, "collection signature count");
         Require(r.Signatures().Contains("fn str_split(string, string) -> StrList"), "split signature");
         Require(r.Signatures().Contains("method FloatList.contains(float) -> bool"), "float signature");
     }

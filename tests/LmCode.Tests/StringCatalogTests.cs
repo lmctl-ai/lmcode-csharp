@@ -152,7 +152,7 @@ static class StringCatalogTests
             }
             finally { File.Delete(temporary); }
         }
-        var expected = std.Concat(hostOnly).Order(StringComparer.Ordinal).ToArray();
+        var expected = std.Concat(hostOnly).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
         Require(all.SequenceEqual(expected), $"{catalog} compiler signatures differ from std registry: missing [{string.Join(", ", expected.Except(all).Order(StringComparer.Ordinal))}], extra [{string.Join(", ", all.Except(expected).Order(StringComparer.Ordinal))}]");
         Console.WriteLine($"PASS {catalog} compiler/registry signature parity ({std.Length}, {(explicitStd ? "explicit canonical schema" : "implicit compiler bundle")})");
     }

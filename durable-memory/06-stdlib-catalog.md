@@ -41,3 +41,32 @@ No compiler source or binaries are vendored or published by this SDK.
 Acceptance: Release warnings-as-errors build; all unit tests; 51 core and 229
 catalog vectors; actual NativeAOT conformance on five native CI targets. Sample
 host pins and its full current corpus are updated after SDK verification.
+
+
+## V3 byte encodings and map snapshots
+
+Canonical source: lmcode-cpp `38bbd918b7fde81db15d1d7427955cc5465d6f35`.
+The byte-identical canonical v3 fragment has 181 signatures; the shared corpus
+contains 267 catalog and 51 core cases. The original v2 notes above record that
+rollout; the current standard includes ten additional signatures.
+
+`EncodingCatalog` implements byte-oriented hex and canonical padded RFC 4648
+Base64. Whitespace, URL-safe alphabet, misplaced padding, nonzero pad bits and
+non-hex bytes fail with exact RUN_HOST messages. Encoding sizes are checked
+against .NET byte-array bounds before allocating; no text decoding or newline
+conversion occurs. The four-function compatibility binder is idempotent after
+default registration; no new dependency or opcode is used.
+
+Map keys/values snapshots reuse the existing typed list value-copy adapters.
+StrMap enumerates its live entries, excluding tombstones. Numeric maps enumerate
+insertion order and use the corresponding typed list constructor. Every call
+spends one shared 65,536-object arena slot, including empty snapshots; data copies
+preserve float bits and independent mutation in both directions.
+
+Compiler main `fa04890cbf6379abfd70803c6283a974efea5554` was built from a scratch
+Git archive and checked using an empty schema: 181 implicit signatures, zero with
+`--without-std`. SDK unit parity also runs against that build. Published npm
+0.2.426 remains v1; public CI uses explicit canonical v3 declarations, as in v2.
+The canonical sample runner executes all 90 pinned cases; its reproduction policy
+explicitly skips five literal source compilations only for a verified legacy
+compiler. The local main compiler reproduces all 90 cases without those skips.

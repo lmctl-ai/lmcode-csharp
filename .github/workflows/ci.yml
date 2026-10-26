@@ -37,11 +37,11 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
-      - name: lmscript compiler (v2 schema explicit)
+      - name: lmscript compiler (v3 schema explicit)
         run: |
           npm i -g @lmctl-ai/lmctl@0.2.426
           lmscript --version
-          test "$(lmscript --dsl-signatures "$GITHUB_WORKSPACE/std/lmcode-std.schema.json" | wc -l)" -eq 171
+          test "$(lmscript --dsl-signatures "$GITHUB_WORKSPACE/std/lmcode-std.schema.json" | wc -l)" -eq 181
       - name: Canonical standard schema
         run: scripts/sync-std.sh --verify
       - name: Build and static analysis
