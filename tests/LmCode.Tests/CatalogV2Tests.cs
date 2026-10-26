@@ -34,9 +34,16 @@ static class CatalogV2Tests
             keys = Method("method Json.keys() -> StrList", json).AsObj();
             Require(context.Get<StrList>(keys).Values.Single().Equals(key.AsStr()), "keys snapshot content");
             for (int i = 0; i < 3; i++) Trap(() => Parse("{"), "json_parse: object key must be a string at byte 1");
-            // One root and one keys list count; the borrowed child and failed
+            long[] native = [7, 9];
+            var ints = CollectionsCatalog.CreateIntList(context, native);
+            native[0] = 100;
+            Require(context.Get<IntList>(ints.AsObj()).Values[0] == 7, "host adapters snapshot values");
+            _ = CollectionsCatalog.CreateFloatList(context, [double.NegativeZero]);
+            _ = CollectionsCatalog.CreateStrList(context, [new VmString(new byte[] { 0, 255 })]);
+            _ = CollectionsCatalog.CreateStrMap(context, [(key.AsStr(), key.AsStr())]);
+            // One root, one keys list and four adapter copies count; the borrowed child and failed
             // parses do not. All catalog families spend this same budget.
-            for (int i = 0; i < 65534; i++) Call("fn int_queue() -> IntQueue");
+            for (int i = 0; i < 65530; i++) Call("fn int_queue() -> IntQueue");
             Trap(() => Parse("null"), "Json object limit exceeded (65536)");
             Trap(() => Method("method Json.keys() -> StrList", json), "StrList object limit exceeded (65536)");
             Require(child == Method("method Json.get(string) -> Json", json, key).AsObj(), "navigation works when root quota is full");

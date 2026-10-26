@@ -181,6 +181,15 @@ public static class CollectionsCatalog
         for (int i = 0; i < items.Count; ++i) { if (i != 0) { separator.Span.CopyTo(bytes.AsSpan(at)); at += separator.Length; } items[i].Span.CopyTo(bytes.AsSpan(at)); at += items[i].Length; }
         return VmString.FromOwned(bytes);
     }
+    /// <summary>Copy host values into a standard collection owned by this run.</summary>
+    public static Value CreateStrList(Context context, IEnumerable<VmString> values)
+        => Value.Object("StrList", Allocate(context, "StrList", new StrList(values)));
+    public static Value CreateIntList(Context context, IEnumerable<long> values)
+        => Value.Object("IntList", Allocate(context, "IntList", new IntList(values)));
+    public static Value CreateFloatList(Context context, IEnumerable<double> values)
+        => Value.Object("FloatList", Allocate(context, "FloatList", new FloatList(values)));
+    public static Value CreateStrMap(Context context, IEnumerable<(VmString Key, VmString Value)> values)
+        => Value.Object("StrMap", Allocate(context, "StrMap", new StrMap(values)));
     internal static ObjRef Allocate<T>(Context context, string type, T value) where T : class
     {
         State state = States.GetOrCreateValue(context);
