@@ -6,8 +6,9 @@ static class CatalogV2Tests
     public static int Run()
     {
         JsonOwnershipAndBudget();
+        PrioritySequenceBoundary();
         Console.WriteLine("PASS v2 JSON ownership, borrowed identity, shared quota and cleanup");
-        return 7;
+        return 8;
     }
 
     private static void Require(bool condition, string message)
@@ -16,6 +17,27 @@ static class CatalogV2Tests
     {
         try { action(); } catch (Error e) when (e.Code == "RUN_HOST" && e.Message == message) { return; }
         throw new Exception("missing exact trap: " + message);
+    }
+    private static void PrioritySequenceBoundary()
+    {
+        var registry = new Registry(); var context = new Context(); registry.EnterRun(context);
+        try
+        {
+            Value queue = registry.Resolve("fn float_pq() -> FloatPQ")!.Function!(context, []);
+            var native = context.Get<ContainersCatalog.Pq<double>>(queue.AsObj());
+            Value Push(double item, double priority) => registry.Resolve("method FloatPQ.push(float, float) -> FloatPQ")!.Method!(context, queue.AsObj(), [Value.Float(item), Value.Float(priority)]);
+            native.Next = long.MaxValue;
+            Trap(() => Push(1, double.NaN), "FloatPQ.push: priority must be finite");
+            Trap(() => Push(1, 0), "FloatPQ.push: insertion sequence exhausted");
+            Require(native.Items.Count == 0 && native.Next == long.MaxValue, "failed push must not mutate PQ");
+            registry.Resolve("method FloatPQ.clear() -> FloatPQ")!.Method!(context, queue.AsObj(), []);
+            long bits = unchecked((long)0x7ff8000000000042UL);
+            Push(BitConverter.Int64BitsToDouble(bits), double.NegativeZero);
+            Push(2, 0);
+            Value Pop() => registry.Resolve("method FloatPQ.pop() -> float")!.Method!(context, queue.AsObj(), []);
+            Require(BitConverter.DoubleToInt64Bits(Pop().AsFloat()) == bits && Pop().AsFloat() == 2, "PQ ties must preserve insertion order and NaN payload bits");
+        }
+        finally { registry.ExitRun(context); }
     }
     private static void JsonOwnershipAndBudget()
     {

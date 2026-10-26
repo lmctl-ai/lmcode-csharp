@@ -14,7 +14,7 @@ public static class ContainersCatalog
     }
     private sealed class Stack<T> { public readonly List<T> Items = []; }
     private sealed class Queue<T> { public readonly List<T> Items = []; public int Head; }
-    private sealed class Pq<T>
+    internal sealed class Pq<T>
     {
         public readonly PriorityQueue<T, (double Priority, long Sequence)> Items = new(PriorityComparer.Instance);
         public long Next;
@@ -126,5 +126,5 @@ public static class ContainersCatalog
         if (value < 0 || value >= count) throw Error.Host(method + ": index out of range: " + value.ToString(CultureInfo.InvariantCulture));
         return (int)value;
     }
-    private static void Trim<T>(Queue<T> q) { if (q.Head > 64 && q.Head * 2 > q.Items.Count) { q.Items.RemoveRange(0, q.Head); q.Head = 0; } }
+    private static void Trim<T>(Queue<T> q) { if (q.Head > 64 && q.Head > q.Items.Count / 2) { q.Items.RemoveRange(0, q.Head); q.Head = 0; } }
 }
