@@ -1,0 +1,10 @@
+{
+  "dsl.schema": 2,
+  "name": "rulemethods_pin",
+  "functions": {
+    "note": [{"params": ["string"], "returns": "void"}]
+  },
+  "interfaces": {
+    "Adjuster": {"params": [{"name": "amount", "type": "int"}], "returns": "void"}
+  }
+}

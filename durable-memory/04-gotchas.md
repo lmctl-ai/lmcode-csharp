@@ -1,6 +1,9 @@
 # Gotchas
 
 - Exact schema bytes are SHA-256 bound, including whitespace and line endings.
+  A `dsl.schema: 2` schema may carry a top-level `interfaces` map (compiler
+  R48 rule methods); the runtime never parses it, but it joins the hash, so
+  schemas compiled with and without it are not interchangeable.
 - VM byte strings must not pass through UTF-16 when lossless bytes are required.
 - C# evaluates left operands first: read a relative displacement before adding the
   reader position, which must point after the operand.

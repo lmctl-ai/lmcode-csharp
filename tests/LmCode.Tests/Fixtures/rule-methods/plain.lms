@@ -1,0 +1,8 @@
+program = _lmcode_ schema="schema.json";
+
+fn adjust(amount: int) -> void {
+  note("adjust " + str(amount));
+}
+adjust(41);
+end _lmcode_
+savedsl(program, ARGV[0]);

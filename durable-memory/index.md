@@ -48,4 +48,5 @@ scripts/sync-std.sh --verify          # Verify standard library schema parity
 
 Continuous Integration runs on GitHub Actions across 5 platforms (Linux x64/arm64, macOS arm64/x64, Windows x64), verifying Release builds, unit tests, 51 core vectors, stdlib vectors, and NativeAOT publishing.
 - [update-sample-suite.md](update-sample-suite.md): canonical sample-suite update and all-port verification rule.
+- [rule-methods-pin.md](rule-methods-pin.md) — compiler R47/R48 (schema `interfaces`, `@NAME`/`implements`): no runtime change, pin test and fixture regeneration.
 Releases/tags track SDK format versions and compatibility milestones.
