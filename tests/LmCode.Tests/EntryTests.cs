@@ -16,6 +16,9 @@ static class EntryTests
         for(int i=0;i<nlocals;i++){U32(b,type);b.Add((byte)hidden);}U16(b,2);U32(b,code.Length);b.AddRange(code);
         U32(b,1);U32(b,0);U32(b,7);U16(b,3);return b.ToArray();
     }
+    // WP11 fixes: duplicate entry names and STORE_LOCAL to a hidden non-loop local are refused.
+    internal static byte[] DuplicateName(){byte[] b=Image();int record=12+2+2+5+2+4+4+4+10,count=b.Length-record-2;var o=new List<byte>(b[..count]);o.Add(0);o.Add(2);o.AddRange(b[(count+2)..]);o.AddRange(b[(count+2)..]);return o.ToArray();}
+    internal static byte[] HiddenStore(){byte[] b=Image(nlocals:2,code:[4,0,0,5,0,1,4,0,0,17]);int record=12+2+2+10+2+4+10+4+10;b[b.Length-record+25]=1;return b;}
     static void U16(List<byte>b,int n){Span<byte>x=stackalloc byte[2];BinaryPrimitives.WriteUInt16BigEndian(x,(ushort)n);b.AddRange(x.ToArray());}
     static void U32(List<byte>b,int n){Span<byte>x=stackalloc byte[4];BinaryPrimitives.WriteUInt32BigEndian(x,(uint)n);b.AddRange(x.ToArray());}
     static void Require(bool ok,string message){if(!ok)throw new Exception(message);}
@@ -30,6 +33,8 @@ static class EntryTests
             ("param type",Image(type:4),"entry 'increment' parameter 1 has type string; the interface expects int"),
             ("hidden param",Image(hidden:1),"entry 'increment' parameter 1 is hidden"),
             ("hidden flag",Image(hidden:2),"hidden flag must be 0 or 1"),
+            ("duplicate name",DuplicateName(),"duplicate entry name 'increment'"),
+            ("hidden store",HiddenStore(),"writes compiler-owned loop local 1"),
             ("HALT value",Image(nparams:0,nlocals:0,iface:"interface Step() -> int",code:[17]),"entry 'increment': HALT leaves 0 values"),
             ("HALT void",Image(nparams:0,nlocals:0,iface:"interface Step() -> void",code:[3,1,17]),"entry 'increment': HALT leaves 1 values"),
             ("jump",Image(nparams:0,nlocals:0,iface:"interface Step() -> void",code:[12,0,0,0,20,17]),"entry 'increment': jump at offset"),

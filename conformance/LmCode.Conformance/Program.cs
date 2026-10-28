@@ -136,9 +136,9 @@ static class Runner
                         throw new Exception("object argument does not match the parameter type");
                     result[i] = Value.Object("Thing", stub.Context.Insert("Thing", new Thing(idValue.GetInt64())));
                 }
-                else if (value.ValueKind == JsonValueKind.String) result[i] = Value.Str(VmString.FromString(value.GetString()!));
-                else if (value.ValueKind == JsonValueKind.True || value.ValueKind == JsonValueKind.False) result[i] = Value.Bool(value.GetBoolean());
-                else if (value.ValueKind == JsonValueKind.Number) result[i] = type == "float" ? Value.Float(value.GetDouble()) : Value.Int(value.GetInt64());
+                else if (value.ValueKind == JsonValueKind.String) { if (type is "int" or "float" or "bool" or "Thing") throw new Exception($"string argument does not match parameter type {type}"); result[i] = Value.Str(VmString.FromString(value.GetString()!)); }
+                else if (value.ValueKind == JsonValueKind.True || value.ValueKind == JsonValueKind.False) { if (type != "bool") throw new Exception($"bool argument does not match parameter type {type}"); result[i] = Value.Bool(value.GetBoolean()); }
+                else if (value.ValueKind == JsonValueKind.Number) { if (type != "int" && type != "float") throw new Exception($"number argument does not match parameter type {type}"); result[i] = type == "float" ? Value.Float(value.GetDouble()) : Value.Int(value.GetInt64()); }
                 else throw new Exception("expected a scalar or Thing object");
             }
             return result;
