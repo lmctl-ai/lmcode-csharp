@@ -31,3 +31,7 @@ Regenerate fixtures with an R47/R48 compiler, e.g.
 from the fixture directory. `plain.lms` keeps a blank line where
 `annotated.lms` has the annotation so source-map line numbers align; without
 it the files differ only in line-table entries.
+
+## R49 supersession (2026-10-28)
+
+The earlier byte-equivalence statement is historical: annotated rules now emit separate v6 entries. Plain functions remain inline-only. The pin checks both body output and direct rule invocation. Core and stdlib now pin C++ d608ba2; see 07-v6-entry-table.md.

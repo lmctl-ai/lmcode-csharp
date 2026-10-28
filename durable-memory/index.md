@@ -1,6 +1,6 @@
 # lmcode-csharp durable memory
 
-`lmcode-csharp` is a zero-dependency .NET 8 / NativeAOT runtime and verifier for schema-bound lmscript bytecode v5.
+`lmcode-csharp` is a zero-dependency .NET 8 / NativeAOT runtime and verifier for schema-bound lmscript bytecode v6.
 Repository: https://github.com/lmctl-ai/lmcode-csharp.
 
 ## 60-second takeover
@@ -8,7 +8,7 @@ Repository: https://github.com/lmctl-ai/lmcode-csharp.
 ```sh
 dotnet build -c Release -warnaserror                   # Build solution with warnings as errors
 dotnet test                                            # Run unit tests
-dotnet run --project conformance/LmCode.Conformance   # Run 51 core conformance vectors
+dotnet run --project conformance/LmCode.Conformance   # Run 70 core conformance vectors
 dotnet publish examples/Greeter -r linux-x64 -c Release # NativeAOT standalone publish
 ```
 
@@ -35,7 +35,7 @@ scripts/sync-std.sh --verify          # Verify standard library schema parity
 
 ### Adding an example
 1. Create an example project under `examples/<Name>/` referencing `src/LmCode`.
-2. Provide an `.lms` script and compiled `.dslb` bytecode v5.
+2. Provide an `.lms` script and compiled `.dslb` bytecode v6.
 3. Configure `PublishAot` in the `.csproj` if testing NativeAOT standalone publishing.
 4. Add verification run in `test.sh` or CI workflow.
 
@@ -46,7 +46,9 @@ scripts/sync-std.sh --verify          # Verify standard library schema parity
 
 ## Releases and CI
 
-Continuous Integration runs on GitHub Actions across 5 platforms (Linux x64/arm64, macOS arm64/x64, Windows x64), verifying Release builds, unit tests, 51 core vectors, stdlib vectors, and NativeAOT publishing.
+Continuous Integration runs on GitHub Actions across 5 platforms (Linux x64/arm64, macOS arm64/x64, Windows x64), verifying Release builds, unit tests, 70 core vectors, stdlib vectors, and NativeAOT publishing.
 - [update-sample-suite.md](update-sample-suite.md): canonical sample-suite update and all-port verification rule.
 - [rule-methods-pin.md](rule-methods-pin.md) — compiler R47/R48 (schema `interfaces`, `@NAME`/`implements`): no runtime change, pin test and fixture regeneration.
 Releases/tags track SDK format versions and compatibility milestones.
+
+R49: [v6 rule entry table](07-v6-entry-table.md).

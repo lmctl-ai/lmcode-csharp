@@ -2,9 +2,9 @@
 
 `dotnet build -c Release -warnaserror`, `dotnet test`, and
 `dotnet run --project conformance/LmCode.Conformance` are the standard checks.
-`scripts/sync-std.sh --verify` confirms the byte-identical 72-signature standard schema and its `std.lock` pin.
+`scripts/sync-std.sh --verify` confirms the byte-identical 181-signature standard schema and its `std.lock` pin.
 The package-free test executable is invoked by the project's VSTest target.
-All 51 checked-in core conformance vectors must run; the `SOURCE_COMMIT` files record the C++ source for the core and catalog suites.
+All 70 checked-in core conformance vectors must run; the `SOURCE_COMMIT` files record the C++ source for the core and catalog suites.
 Use `scripts/sync-vectors.sh` to refresh without recompiling vectors.
 
 Native publish: `dotnet publish examples/Greeter -r linux-x64 -c Release`.
@@ -26,5 +26,7 @@ with independently calculated byte/numeric/container expectations. CI runs these
 through the ordinary catalog conformance step. `LMCODE_TRACE=1` emits actual
 trace/error records for byte-exact cross-SDK comparisons; the source generator
 and larger 16-seed/64-round mode live in lmcode-cpp `scripts/gen-std-corpus.py`
-and `scripts/diff-stdlib.py`. The synchronized suite has 118 catalog cases and
-51 core cases.
+and `scripts/diff-stdlib.py`. The synchronized suite has 267 catalog cases and
+70 core cases.
+
+The core and stdlib tree hashes are checked by VectorPinTests against vectors.lock and stdlib-vectors.lock. EntryTests is part of dotnet test; --entry-tests selects the refusal/API controls. No scripts/matrix.sh exists in this SDK. The shared C++ matrix includes C# but must run against independent scratch checkouts when the reference is read-only.

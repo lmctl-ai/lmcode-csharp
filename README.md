@@ -1,11 +1,11 @@
 # lmcode-csharp
 
-A dependency-free .NET 8 SDK for embedding lmscript bytecode v5 in C# hosts. Namespace
+A dependency-free .NET 8 SDK for embedding lmscript bytecode v6 in C# hosts. Namespace
 `LmCode` provides a typed registry, schema-bound loader, structural verifier, VM,
 per-run object context, and source-located errors. NativeAOT is supported without
 reflection or generated dynamic code.
 
-Experimental: bytecode compatibility is not promised. The SDK reads version 5 only;
+Experimental: bytecode compatibility is not promised. The SDK reads version 6 only;
 compiler, SDK and host must move together when the format version changes. Pin an
 SDK commit and matching compiler version.
 
@@ -14,12 +14,12 @@ SDK commit and matching compiler version.
 | **Bytecode Conformance Suite** | **Unit Tests & Invariants** |
 | --- | --- |
 | <img src="docs/images/conformance.png" width="440" alt="Bytecode Conformance Suite"> | <img src="docs/images/unit-tests.png" width="440" alt="Unit Tests & Invariants"> |
-| All 51 core bytecode vectors pass across opcodes, types, error paths, and control flow.<br>`dotnet run --project conformance/LmCode.Conformance -- conformance/vectors` | 136 unit tests and standard catalog tests covering C# SDK invariants.<br>`dotnet test` |
+| All 70 core bytecode vectors pass across opcodes, types, error paths, and control flow.<br>`dotnet run --project conformance/LmCode.Conformance -- conformance/vectors` | 208 unit tests and standard catalog tests covering C# SDK invariants.<br>`dotnet test` |
 
 | **Greeter Example Host** | **Same Bytecode, Four Runtimes** |
 | --- | --- |
 | <img src="docs/images/greeter-example.png" width="440" alt="Greeter Example Host"> | <img src="docs/images/same-bytecode-four-runtimes.png" width="440" alt="Same Bytecode, Four Runtimes"> |
-| Minimal embedding host compiling and executing DSL logic in .NET 8 / C#.<br>`dotnet run --project examples/Greeter -- --dsl hello.dslb` | Cross-language parity: C++, Rust, Go, and C# run the exact same bytecode.<br>`PASS 51/51 vectors across 4 runtimes` |
+| Minimal embedding host compiling and executing DSL logic in .NET 8 / C#.<br>`dotnet run --project examples/Greeter -- --dsl hello.dslb` | Cross-language parity: C++, Rust, Go, and C# run the exact same bytecode.<br>`PASS 70/70 vectors across 4 runtimes` |
 
 ## Embed
 
@@ -135,9 +135,10 @@ Regenerate the fixture from `tests/LmCode.Tests/Fixtures` with `lmscript string.
 truncation/trailing data, constant tags and indexes, imports and context declarations,
 instruction decoding, call kind/arity, boolean and math operands, jump boundaries,
 paired nested range/while loops, read-only range slots, final HALT, and line-table
-ordering/bounds. Loop-bearing programs additionally receive operand stack depth
-propagation and join validation. As in the references, loop-free stack underflow is
-reported at runtime. This is structural verification, not full type inference.
+ordering/bounds. Loop-bearing bodies additionally receive operand stack depth propagation and join
+validation. Rule entries always receive that pass, including loop-free entries,
+and HALT must leave zero values for void or one otherwise. Loop-free body stack
+underflow remains a runtime error. This is structural verification, not full type inference.
 
 Programs retain immutable bound callbacks and copied bytecode and can be reused.
 The host owns callback thread safety. There are no VM time or memory budgets;
@@ -170,7 +171,7 @@ original number/string/key token spellings and object order. Navigation borrows
 immutable nodes; roots share the 65,536-object run budget with all containers,
 and `keys()` allocates a `StrList`. Every handle expires at run exit.
 
-Run all 229 catalog vectors alongside the 51 core vectors:
+Run all 229 catalog vectors alongside the 70 core vectors:
 
 ```sh
 dotnet run -c Release --project conformance/LmCode.Conformance -- conformance/stdlib-vectors
@@ -198,8 +199,28 @@ order. Each call allocates one independent mutable list in the shared run arena.
 Updates, removal, reinsertion and list mutation never alias map storage. Numeric
 snapshots preserve int64 extrema, signed zero and float payload bits.
 
-The complete shared acceptance corpus has 267 catalog vectors plus 51 core
+The complete shared acceptance corpus has 267 catalog vectors plus 70 core
 vectors. Public CI verifies explicit 181-signature parity with published compiler
 0.2.426, whose implicit bundle remains v1. A scratch build of compiler main also
 passes implicit 181-signature parity; no private Actions or source access is
 required by the public CI workflows.
+
+## Rule entries (R49, DSLB v6)
+
+Program.Entries exposes immutable source-order Entry metadata: Name, Annotation,
+Iface (canonical interface text without parameter names), Params (type names), Returns.
+Value Call(int entry, Context context, Registry registry, IReadOnlyList<Value> args)
+runs one entry with fresh locals and initialized parameter slots. It needs no prior
+Run; Run executes only the body. Both paths share the same interpreter and registry
+run lifetime. Value kinds are the host's responsibility; void returns Value.None.
+Arity errors are RUN_HOST: call entry 'NAME' expects N argument(s); found M.
+
+Only v6 is accepted. Entry parameter counts/types/visibility, metadata indexes,
+code/loop/jump structure, source tables and HALT stack depth are checked at load.
+Core dsl-conformance/3 calls run the body once first as a runner convention; the API
+does not require that order. The runner supports entries/call/call_error/call_error_at
+and thing ID results. External sample repos migrate separately with their SDK pins.
+
+vectors.lock and stdlib-vectors.lock hash the copied trees (including SOURCE_COMMIT).
+scripts/sync-vectors.sh refreshes them from committed C++ bytes; dotnet test verifies
+the hashes. The current shared core/catalog corpora contain 70/267 vectors.
