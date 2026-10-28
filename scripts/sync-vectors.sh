@@ -15,4 +15,6 @@ for suite in vectors stdlib-vectors; do
   cp -a "$scratch/conformance/$suite"/. "$destination"/
   printf '%s\n' "$commit" > "$destination/SOURCE_COMMIT"
 done
+cd "$repo_dir"
+dotnet run -c Release --project tests/LmCode.Tests -- --write-vector-locks "$commit"
 echo "synced committed core and catalog vectors at $commit"
