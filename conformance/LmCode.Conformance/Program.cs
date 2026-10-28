@@ -118,6 +118,59 @@ static class Runner
         if (!double.TryParse(body[(split + 1)..], NumberStyles.Float, CultureInfo.InvariantCulture, out var want) || !double.TryParse(actual[prefix.Length..], NumberStyles.Float, CultureInfo.InvariantCulture, out var got)) return false;
         return double.IsFinite(want) && double.IsFinite(got) && Math.Abs(got - want) <= 1e-12 * Math.Max(Math.Abs(want), 1e-300);
     }
+    static Value[] ParseArgs(string json, Entry entry, Stub stub)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            if (document.RootElement.ValueKind != JsonValueKind.Array) throw new Exception("expected an array");
+            var values = document.RootElement.EnumerateArray().ToArray();
+            if (values.Length != entry.Params.Count) return new Value[values.Length];
+            var result = new Value[values.Length];
+            for (var i = 0; i < values.Length; i++)
+            {
+                var value = values[i]; var type = entry.Params[i];
+                if (value.ValueKind == JsonValueKind.Object)
+                {
+                    if (!value.TryGetProperty("type", out var typeValue) || !value.TryGetProperty("id", out var idValue) || typeValue.GetString() != type || type != "Thing")
+                        throw new Exception("object argument does not match the parameter type");
+                    result[i] = Value.Object("Thing", stub.Context.Insert("Thing", new Thing(idValue.GetInt64())));
+                }
+                else if (value.ValueKind == JsonValueKind.String) result[i] = Value.Str(VmString.FromString(value.GetString()!));
+                else if (value.ValueKind == JsonValueKind.True || value.ValueKind == JsonValueKind.False) result[i] = Value.Bool(value.GetBoolean());
+                else if (value.ValueKind == JsonValueKind.Number) result[i] = type == "float" ? Value.Float(value.GetDouble()) : Value.Int(value.GetInt64());
+                else throw new Exception("expected a scalar or Thing object");
+            }
+            return result;
+        }
+        catch (JsonException e) { throw Error.Host("conformance: bad call args: " + e.Message); }
+        catch (Exception e) when (e is not Error) { throw Error.Host("conformance: bad call args: " + e.Message + " in " + json); }
+    }
+    static bool ResultMatches(string line, Value value, Context context)
+    {
+        if (!line.StartsWith("result ", StringComparison.Ordinal)) return false;
+        var spec = line[7..]; if (spec == "void") return value.Kind == ValueKind.None;
+        var split = spec.IndexOf(' '); if (split < 0) return false;
+        var type = spec[..split]; var text = spec[(split + 1)..];
+        return type switch
+        {
+            "int" => value.Kind == ValueKind.Int && value.AsInt().ToString(CultureInfo.InvariantCulture) == text,
+            "float" => value.Kind == ValueKind.Float && Formatting.FormatG15(value.AsFloat()) == text,
+            "string" => value.Kind == ValueKind.Str && value.AsStr().ToString() == text,
+            "bool" => value.Kind == ValueKind.Bool && (value.AsBool() ? "true" : "false") == text,
+            "thing" => value.Kind == ValueKind.Obj && value.TypeName == "Thing" && context.Get<Thing>(value.AsObj()).Id.ToString(CultureInfo.InvariantCulture) == text,
+            _ => false
+        };
+    }
+    static string BareMessage(Error? caught, string message)
+    {
+        if (caught?.Line is not uint line) return message;
+        var prefix = $"dsl line {line}{(caught.Column is ushort column ? $":{column}" : "")}: ";
+        return message.StartsWith(prefix, StringComparison.Ordinal) ? message[prefix.Length..] : message;
+    }
+    static bool LocationMatches(Error? caught, uint line, ushort column) =>
+        (line == 0 ? caught?.Line is null : caught?.Line == line) &&
+        (column == 0 ? caught?.Column is null : caught?.Column == column);
     public static int Main(string[] args)
     {
         var dir = args.Length == 1 ? args[0] : Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "vectors"));
@@ -134,26 +187,36 @@ static class Runner
             using var schemaDocument = JsonDocument.Parse(schemaBytes);
             var standardCatalog = schemaDocument.RootElement.TryGetProperty("functions", out var functions) &&
                 new[] { "str_len", "math_abs", "str_list", "print", "file_read" }.Any(name => functions.TryGetProperty(name, out _));
-            var stub = new Stub(standardCatalog); stub.Bind(); var loaded = false; var ran = false; var error = ""; var code = "";
+            var stub = new Stub(standardCatalog); stub.Bind(); var loaded = false; var ran = false; var called = false; var error = ""; var code = ""; Value callResult = Value.None; Program? program = null;
             Error? caught = null;
-            try { var p = Program.Load(File.ReadAllBytes(Path.Combine(dir, name + ".dslb")), schemaBytes, stub.Registry); loaded = true; p.Run(stub.Context, stub.Registry); ran = true; }
+            try
+            {
+                program = Program.Load(File.ReadAllBytes(Path.Combine(dir, name + ".dslb")), schemaBytes, stub.Registry); loaded = true;
+                var isCall = kind is "call" or "call_error" or "call_error_at";
+                if (kind != "entries") { program.Run(stub.Context, stub.Registry); ran = true; }
+                if (isCall)
+                {
+                    var split = exp[1].IndexOf(' '); var entryName = split < 0 ? exp[1] : exp[1][..split];
+                    var index = -1; for (var i = 0; i < program.Entries.Count; i++) if (program.Entries[i].Name == entryName) { index = i; break; }
+                    if (index < 0) throw Error.Host($"conformance: entry '{entryName}' not found");
+                    var json = split < 0 ? "[]" : exp[1][(split + 1)..]; callResult = program.Call(index, stub.Context, stub.Registry, ParseArgs(json, program.Entries[index], stub)); called = true;
+                }
+            }
             catch (Error e) { caught = e; error = e.Message; code = e.Code; }
             catch (Exception e) { error = e.Message; }
             var locationOk = false;
             if (lines.Length >= 3 && uint.TryParse(lines[1], out var expectedLine) && ushort.TryParse(lines[2], out var expectedColumn))
                 locationOk = (expectedLine == 0 ? caught is null || !caught.Line.HasValue : caught?.Line == expectedLine) && (expectedColumn == 0 ? caught is null || !caught.Column.HasValue : caught?.Column == expectedColumn);
-            var exactMessage = error;
-            if (caught?.Line is uint line)
-            {
-                var prefix = $"dsl line {line}{(caught.Column is ushort column ? $":{column}" : "")}: ";
-                if (exactMessage.StartsWith(prefix, StringComparison.Ordinal)) exactMessage = exactMessage[prefix.Length..];
-            }
+            var exactMessage = BareMessage(caught, error);
             if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("LMCODE_TRACE")))
             {
                 foreach (string value in stub.Trace) Console.WriteLine($"TRACE\t{name}\t{value}");
                 if (code.Length != 0) Console.WriteLine($"ERROR\t{name}\t{code}\t{exactMessage}");
             }
-            var ok = kind == "trace" ? ran && stub.Trace.Count == lines.Length && stub.Trace.Zip(lines).All(x => Match(x.First, x.Second)) : kind == "runtime_error" ? loaded && !ran && error.Contains(lines[0], StringComparison.Ordinal) : kind == "runtime_error_exact" ? loaded && !ran && lines.Length == 2 && code == lines[0] && exactMessage == lines[1] : kind == "runtime_error_file" ? loaded && !ran && lines.Length >= 3 && code == lines[0] && exactMessage.StartsWith(lines[1] + ": ", StringComparison.Ordinal) && exactMessage.Contains(lines[2], StringComparison.Ordinal) : kind == "runtime_error_at" ? loaded && !ran && lines.Length >= 4 && code == lines[0] && locationOk && error.Contains(lines[3], StringComparison.Ordinal) : kind == "load_error" && !loaded && error.Contains(lines[0], StringComparison.Ordinal);
+            var callAt = false;
+            if (kind == "call_error_at" && lines.Length >= 5 && uint.TryParse(lines[2], out var callLine) && ushort.TryParse(lines[3], out var callColumn))
+                callAt = LocationMatches(caught, callLine, callColumn);
+            var ok = kind == "trace" ? ran && stub.Trace.Count == lines.Length && stub.Trace.Zip(lines).All(x => Match(x.First, x.Second)) : kind == "entries" ? loaded && program!.Entries.Select(e => $"{e.Name} {e.Annotation} {e.Iface}").SequenceEqual(lines) : kind == "call" ? loaded && ran && called && lines.Length >= 2 && ResultMatches(lines[1], callResult, stub.Context) && stub.Trace.Count == lines.Length - 2 && stub.Trace.Zip(lines.Skip(2)).All(x => Match(x.First, x.Second)) : kind == "call_error" ? loaded && !called && lines.Length == 3 && code == lines[1] && error.Contains(lines[2], StringComparison.Ordinal) : kind == "call_error_at" ? loaded && !called && lines.Length >= 5 && code == lines[1] && callAt && error.Contains(lines[4], StringComparison.Ordinal) : kind == "runtime_error" ? loaded && !ran && error.Contains(lines[0], StringComparison.Ordinal) : kind == "runtime_error_exact" ? loaded && !ran && lines.Length == 2 && code == lines[0] && exactMessage == lines[1] : kind == "runtime_error_file" ? loaded && !ran && lines.Length >= 3 && code == lines[0] && exactMessage.StartsWith(lines[1] + ": ", StringComparison.Ordinal) && exactMessage.Contains(lines[2], StringComparison.Ordinal) : kind == "runtime_error_at" ? loaded && !ran && lines.Length >= 4 && code == lines[0] && locationOk && error.Contains(lines[3], StringComparison.Ordinal) : kind == "load_error" && !loaded && error.Contains(lines[0], StringComparison.Ordinal);
             Console.WriteLine((ok ? "ok - " : "FAIL - ") + name + " (" + kind + ")"); if (!ok) { failed++; Console.WriteLine("    error: " + error); }
             if (stub.TempDir.Length != 0) try { Directory.Delete(stub.TempDir, true); } catch { }
         }

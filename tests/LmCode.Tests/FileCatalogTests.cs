@@ -75,9 +75,9 @@ static class FileCatalogTests
     private static void CallMethod(List<byte> code, int index, int argc) { code.Add(8); U16(code, (ushort)index); code.Add((byte)argc); }
     private static byte[] Image(string[] constants, byte[] code, int imports)
     {
-        var b = new List<byte>("DSLB"u8.ToArray()); U16(b, 5); b.AddRange(SHA256.HashData([])); U32(b, (uint)constants.Length);
+        var b = new List<byte>("DSLB"u8.ToArray()); U16(b, 6); b.AddRange(SHA256.HashData([])); U32(b, (uint)constants.Length);
         foreach (string value in constants) { b.Add(1); byte[] raw = System.Text.Encoding.UTF8.GetBytes(value); U32(b, (uint)raw.Length); b.AddRange(raw); }
-        U16(b, (ushort)imports); for (ushort i = 0; i < imports; ++i) U32(b, i); U16(b, 0); U16(b, 0); U16(b, 6); U32(b, (uint)code.Length); b.AddRange(code); U32(b, 0); return b.ToArray();
+        U16(b, (ushort)imports); for (ushort i = 0; i < imports; ++i) U32(b, i); U16(b, 0); U16(b, 0); U16(b, 6); U32(b, (uint)code.Length); b.AddRange(code); U32(b, 0); U16(b, 0); return b.ToArray();
     }
     private static void U16(List<byte> b, ushort value) { b.Add((byte)(value >> 8)); b.Add((byte)value); }
     private static void U32(List<byte> b, uint value) { b.Add((byte)(value >> 24)); b.Add((byte)(value >> 16)); b.Add((byte)(value >> 8)); b.Add((byte)value); }

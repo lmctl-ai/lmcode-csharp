@@ -33,7 +33,7 @@ public static class VerifierTests
 
     private static void RejectTruncated()
     {
-        try { Program.Load(new byte[] { (byte)'D', (byte)'S', (byte)'L', (byte)'B', 0, 5 }, Array.Empty<byte>(), new Registry()); }
+        try { Program.Load(new byte[] { (byte)'D', (byte)'S', (byte)'L', (byte)'B', 0, 6 }, Array.Empty<byte>(), new Registry()); }
         catch (Error e) when (e.Code == "LOAD_BAD_BYTECODE" && e.Message.Contains("truncated", StringComparison.Ordinal)) { return; }
         throw new InvalidOperationException("verifier case failed: truncation");
     }
@@ -51,13 +51,13 @@ public static class VerifierTests
     private static byte[] Image(byte[] code, string[]? locals = null, bool badLine = false)
     {
         locals ??= Array.Empty<string>();
-        var b = new List<byte>(); b.AddRange("DSLB"u8.ToArray()); U16(b, 5); b.AddRange(SHA256.HashData(Array.Empty<byte>()));
+        var b = new List<byte>(); b.AddRange("DSLB"u8.ToArray()); U16(b, 6); b.AddRange(SHA256.HashData(Array.Empty<byte>()));
         U32(b, locals.Length == 0 ? 0 : 1); if (locals.Length != 0) { b.Add(1); U32(b, 3); b.Add((byte)'i'); b.Add((byte)'n'); b.Add((byte)'t'); }
         U16(b, 0); U16(b, 0); U16(b, (ushort)locals.Length);
         foreach (string local in locals) { U32(b, 0); b.Add(1); }
         U16(b, 8); U32(b, (uint)code.Length); b.AddRange(code); U32(b, (uint)(badLine ? 1 : 0));
         if (badLine) { U32(b, 99); U32(b, 1); U16(b, 1); }
-        return b.ToArray();
+        U16(b, 0); return b.ToArray();
     }
 
     private static void PushInt(List<byte> b, long value) { b.Add(1); Span<byte> x = stackalloc byte[8]; BinaryPrimitives.WriteInt64BigEndian(x, value); b.AddRange(x.ToArray()); }

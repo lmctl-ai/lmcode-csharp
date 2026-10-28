@@ -83,10 +83,10 @@ static class CollectionsTestingCatalogTests
 
     private static byte[] Image(string[] constants, byte[] code, int imports)
     {
-        var b = new List<byte>("DSLB"u8.ToArray()); U16(b, 5); b.AddRange(SHA256.HashData([]));
+        var b = new List<byte>("DSLB"u8.ToArray()); U16(b, 6); b.AddRange(SHA256.HashData([]));
         U32(b, (uint)constants.Length);
         foreach (string value in constants) { b.Add(1); byte[] raw = System.Text.Encoding.UTF8.GetBytes(value); U32(b, (uint)raw.Length); b.AddRange(raw); }
-        U16(b, (ushort)imports); for (ushort i = 0; i < imports; ++i) U32(b, i); U16(b, 0); U16(b, 0); U16(b, 8); U32(b, (uint)code.Length); b.AddRange(code); U32(b, 0); return b.ToArray();
+        U16(b, (ushort)imports); for (ushort i = 0; i < imports; ++i) U32(b, i); U16(b, 0); U16(b, 0); U16(b, 8); U32(b, (uint)code.Length); b.AddRange(code); U32(b, 0); U16(b, 0); return b.ToArray();
     }
     private static void U16(List<byte> b, ushort n) { b.Add((byte)(n >> 8)); b.Add((byte)n); }
     private static void U32(List<byte> b, uint n) { b.Add((byte)(n >> 24)); b.Add((byte)(n >> 16)); b.Add((byte)(n >> 8)); b.Add((byte)n); }

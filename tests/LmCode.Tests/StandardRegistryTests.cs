@@ -94,10 +94,10 @@ static class StandardRegistryTests
     private static byte[] Image(string import, byte[] code) => Image([import], code);
     private static byte[] Image(string[] imports, byte[] code)
     {
-        var b = new List<byte>("DSLB"u8.ToArray()); U16(b, 5); b.AddRange(SHA256.HashData([])); U32(b, (uint)imports.Length);
+        var b = new List<byte>("DSLB"u8.ToArray()); U16(b, 6); b.AddRange(SHA256.HashData([])); U32(b, (uint)imports.Length);
         foreach (string import in imports) { b.Add(1); byte[] text = System.Text.Encoding.UTF8.GetBytes(import); U32(b, (uint)text.Length); b.AddRange(text); }
         U16(b, (ushort)imports.Length); for (uint i = 0; i < imports.Length; ++i) U32(b, i);
-        U16(b, 0); U16(b, 0); U16(b, 4); U32(b, (uint)code.Length); b.AddRange(code); U32(b, 0); return b.ToArray();
+        U16(b, 0); U16(b, 0); U16(b, 4); U32(b, (uint)code.Length); b.AddRange(code); U32(b, 0); U16(b, 0); return b.ToArray();
     }
     private static void U16(List<byte> b, ushort value) { b.Add((byte)(value >> 8)); b.Add((byte)value); }
     private static void U32(List<byte> b, uint value) { b.Add((byte)(value >> 24)); b.Add((byte)(value >> 16)); b.Add((byte)(value >> 8)); b.Add((byte)value); }

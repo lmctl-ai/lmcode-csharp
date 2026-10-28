@@ -4,6 +4,9 @@ static class Tests
 {
     static int Main(string[] args)
     {
+        if (args is ["--write-vector-locks", var commit]) { VectorPinTests.Write(commit); return 0; }
+        if (args is ["--vector-pins"]) { VectorPinTests.Run(); return 0; }
+        if (args is ["--entry-tests"]) { EntryTests.Run(); return 0; }
         if (args is ["--string-catalog"]) { StringCatalogTests.Run(); return 0; }
         var checks = new (string Name, Func<bool> Check)[]
         {
@@ -29,7 +32,9 @@ static class Tests
         int v2 = CatalogV2Tests.Run();
         int encoding = EncodingCatalogTests.Run();
         int ruleMethods = RuleMethodsPinTests.Run();
-        Console.WriteLine($"PASS unit tests ({checks.Length + 6 + verified + catalog + collections + math + standard + files + v2 + encoding + ruleMethods})"); return 0;
+        int entries = EntryTests.Run();
+        int pins = VectorPinTests.Run();
+        Console.WriteLine($"PASS unit tests ({checks.Length + 6 + verified + catalog + collections + math + standard + files + v2 + encoding + ruleMethods + entries + pins})"); return 0;
     }
 
     static bool RawBytes()

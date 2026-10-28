@@ -5,7 +5,7 @@ static class RuleMethodsPinTests
 {
     // Regression pin for compiler rule methods (R47/R48): a dsl.schema: 2 schema may carry a
     // top-level "interfaces" map of SAM signatures, and bytecode from an annotated `implements`
-    // fn must load and run unchanged. Fixtures under Fixtures/rule-methods were compiled with an
+    // fn preserves body behavior and provides a callable rule entry. Fixtures under Fixtures/rule-methods were compiled with an
     // R47/R48 lmscript (LMSCRIPT_BIN); plain.lms keeps a blank line where annotated.lms has the
     // @PRICE_RULE annotation so source-map line numbers align.
     public static int Run()
@@ -28,13 +28,17 @@ static class RuleMethodsPinTests
         Program.Load(plain, schema, registry).Run(new Context(), registry);
         Require(output.SequenceEqual(["adjust 41"]), "unannotated program output: " + string.Join(", ", output));
 
-        Require(annotated.SequenceEqual(plain), "@PRICE_RULE plus implements Adjuster must leave no trace in compiled bytes");
+        var program = Program.Load(annotated, schema, registry);
+        Require(program.Entries.Count == 1 && program.Entries[0].Annotation == "PRICE_RULE", "rule metadata");
+        Require(Program.Load(plain, schema, registry).Entries.Count == 0, "plain function is not an entry");
+        output.Clear();program.Call(0,new Context(),registry,[Value.Int(12)]);
+        Require(output.SequenceEqual(["adjust 12"]), "entry call parameter");
 
         bool mismatch = false;
         try { Program.Load(annotated, withoutInterfaces, registry); }
         catch (Error error) { mismatch = error.Code == "LOAD_SCHEMA_MISMATCH"; }
         Require(mismatch, "interfaces join the schema sha256, so a schema without them must not load this bytecode");
-        Console.WriteLine("PASS rule-methods pin"); return 5;
+        Console.WriteLine("PASS rule-methods pin"); return 7;
     }
 
     private static string[] SchemaSignatures(byte[] schema)

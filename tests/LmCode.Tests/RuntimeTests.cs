@@ -20,12 +20,12 @@ static class RuntimeTests
     private static byte[] Image(byte[] code, byte[][] constants, uint[] imports, bool location = false)
     {
         var b = new List<byte>("DSLB"u8.ToArray());
-        U16(b, 5); b.AddRange(SHA256.HashData([])); U32(b, (uint)constants.Length);
+        U16(b, 6); b.AddRange(SHA256.HashData([])); U32(b, (uint)constants.Length);
         foreach (var c in constants) { b.Add(1); U32(b, (uint)c.Length); b.AddRange(c); }
         U16(b, (ushort)imports.Length); foreach (var i in imports) U32(b, i);
         U16(b, 0); U16(b, 0); U16(b, 8); U32(b, (uint)code.Length); b.AddRange(code);
         U32(b, location ? 1u : 0u); if (location) { U32(b, 0); U32(b, 12); U16(b, 8); }
-        return b.ToArray();
+        U16(b, 0); return b.ToArray();
     }
     private static void U16(List<byte> b, ushort n) { b.Add((byte)(n >> 8)); b.Add((byte)n); }
     private static void U32(List<byte> b, uint n) { b.Add((byte)(n >> 24)); b.Add((byte)(n >> 16)); b.Add((byte)(n >> 8)); b.Add((byte)n); }
