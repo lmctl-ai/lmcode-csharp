@@ -224,3 +224,11 @@ and thing ID results. External sample repos migrate separately with their SDK pi
 vectors.lock and stdlib-vectors.lock hash the copied trees (including SOURCE_COMMIT).
 scripts/sync-vectors.sh refreshes them from committed C++ bytes; dotnet test verifies
 the hashes. The current shared core/catalog corpora contain 70/267 vectors.
+
+## lmscript tests and automatic releases
+
+Install .NET 8, Node 24 and `npm install -g @lmctl-ai/lmctl`. From this repository run `lmscript test.lms` or `lmctl test.lms`; test.sh forwards to lmscript. Set RUN_NATIVE=1 and RUNTIME_ID to linux-x64, linux-arm64, osx-arm64, osx-x64 or win-x64 to include NativeAOT builds and execution (requires the platform native toolchain).
+
+Every main push builds and tests all five platforms, then publishes native executables, licenses and SHA256SUMS to GitHub Releases. Pull requests validate without publishing.
+
+`examples/RuleEntries/rules.lms` defines an `@increment` function implementing `Score(int) -> int`. The C# host selects the annotation and calls it with 41, asserting 42 before any body execution. Both managed and native forms run in CI alongside core and standard conformance. Releases contain Greeter, LmCode.Conformance and RuleEntries executables.

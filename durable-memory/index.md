@@ -52,3 +52,5 @@ Continuous Integration runs on GitHub Actions across 5 platforms (Linux x64/arm6
 Releases/tags track SDK format versions and compatibility milestones.
 
 R49: [v6 rule entry table](07-v6-entry-table.md).
+
+- [lmscript tests and releases](08-lmscript-releases.md)
