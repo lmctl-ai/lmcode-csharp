@@ -6,6 +6,7 @@ fn step(command) {
 }
 step(["bash", "scripts/sync-std.sh", "--verify"]);
 step(["dotnet", "build", "-c", "Release", "-warnaserror"]);
+set_env("LMCODE_COMPILER_EXPLICIT_STD", "1");
 step(["dotnet", "test", "-c", "Release", "--no-build"]);
 step(["dotnet", "run", "-c", "Release", "--project", "conformance/LmCode.Conformance", "--", "conformance/vectors"]);
 step(["dotnet", "run", "-c", "Release", "--project", "conformance/LmCode.Conformance", "--", "conformance/stdlib-vectors"]);

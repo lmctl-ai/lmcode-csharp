@@ -22,6 +22,7 @@ static class Tests
         };
         foreach (var (name, check) in checks)
             if (!check()) return Fail(name);
+        TemplateTests.Run();
         if (!RuntimeTests.Run()) return Fail("runtime tests");
         int verified = VerifierTests.Run();
         int catalog = StringCatalogTests.Run();
