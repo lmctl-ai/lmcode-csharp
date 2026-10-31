@@ -10,6 +10,7 @@ static class Tests
         if (args is ["--entry-tests"]) { EntryTests.Run(); return 0; }
         if (args is ["--string-catalog"]) { StringCatalogTests.Run(); return 0; }
         if(args is ["--invocation-tests"]) {try{InvocationTests.Run();ResultContractTests.Run();InvocationVectorTests.Run();return 0;}catch(Exception e){Console.Error.WriteLine("FAIL invocation tests: "+e.Message);return 1;}}
+        if(args is ["--dry-tests"]) {try{DryRuntimeTests.RunAll();return 0;}catch(Exception e){Console.Error.WriteLine("FAIL dry tests: "+e);return 1;}}
         if (args is ["--return-tests"]) {
             try {ResultJsonTests.Run();ResultSinkTests.Run();return 0;}
             catch(Exception error) {Console.Error.WriteLine("FAIL return tests: "+error.Message);return 1;}
@@ -33,7 +34,7 @@ static class Tests
         foreach (var (name, check) in checks)
             if (!check()) return Fail(name);
         TemplateTests.Run();
-        int results=ResultJsonTests.Run()+ResultSinkTests.Run()+ReturnVectorTests.Run()+InvocationTests.Run()+ResultContractTests.Run()+InvocationVectorTests.Run();
+        int results=ResultJsonTests.Run()+ResultSinkTests.Run()+ReturnVectorTests.Run()+InvocationTests.Run()+ResultContractTests.Run()+InvocationVectorTests.Run()+DryRuntimeTests.RunAll();
         if (!RuntimeTests.Run()) return Fail("runtime tests");
         int verified = VerifierTests.Run();
         int catalog = StringCatalogTests.Run();

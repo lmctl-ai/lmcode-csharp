@@ -2,6 +2,7 @@
 
 Public API: InvocationResults.FromCommand(parsedFiles), FromMetadata(raw,files),
 Registrations (parser order with canonical indices), Select(index,registry,contract),
+Select(index,registry,context,contract), ApplyMode(context),
 Complete(index), Fail(indexOrNull,phase,error), WriteFrame(stream). See README for
 lifecycle and exact envelope shapes. Use ResultFrames.FailureFrame for errors before
 collector construction. Old sink-only framing and unframed Reports APIs are removed.
@@ -14,7 +15,7 @@ the envelope. First failure wins even over invalid later
 failure arguments. New work cannot start after failure; active slots may drain.
 Collector bookkeeping/shared registry access must be serialized by the host.
 
-Manifest validation is strict: version/mode/keys/contiguous indices, unique absolute
+Manifest validation is strict: version/mode/required boolean dry/keys/contiguous indices, unique absolute
 files, exact complete registrations, UTF-8 without BOM, duplicate keys and unsafe
 raw numbers refused. Standalone repeated CLI occurrences allow duplicate paths.
 No process environment mutation; inherited context is read only for execution.
@@ -25,6 +26,10 @@ unfinished. Json is JSON-wide. Known native collection identity is checked even 
 empty collections; int widens only toward float. No general coercion. No contract
 means any valid JSON including null. Host metadata outside result is not subjected
 to result numeric constraints. No new imports/opcodes/VM types or version change.
+
+Dry is immutable invocation metadata copied to selected contexts. Dry success and
+failure envelopes append `dry:true` after existing keys; real mode omits the member.
+Pre-collector metadata errors include the marker only after mode and dry are valid.
 
 One compact terminal envelope per invocation, not per part. Add-order aggregation,
 required builder parts, missing completion failure, no partial results on failure.

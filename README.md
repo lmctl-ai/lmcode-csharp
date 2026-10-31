@@ -47,9 +47,10 @@ VmProgram program;
 try { program = VmProgram.Load(File.ReadAllBytes(path), schema, registry); }
 catch (Error error) { return ResultFrames.FailureFrame(Console.OpenStandardOutput(), "load", error); }
 var results = InvocationResults.FromCommand([path]);
+var context = new Context();
 try {
-    results.Select(0, registry, ResultContract.FromSchema(System.Text.Encoding.UTF8.GetString(schema)));
-    program.Run(new Context(), registry);
+    results.Select(0, registry, context, ResultContract.FromSchema(System.Text.Encoding.UTF8.GetString(schema)));
+    program.Run(context, registry);
     results.Complete(0);
 } catch (Error error) { results.Fail(0, "run", error); }
 return results.WriteFrame(Console.OpenStandardOutput());
@@ -61,6 +62,14 @@ return results.WriteFrame(Console.OpenStandardOutput());
 Use `context.Get<T>(receiver)` to access a host object. Objects and handles belong to
 one context; do not move handles between contexts. Register overloads with distinct
 parameter tuples. `Signatures()` returns sorted canonical schema signatures.
+
+`Function` and `Method` accept an optional final `Registry.Dry(...)` slot with the
+same callback shape. Without a slot, dry calls skip the real callback and return a
+fresh dummy based on the declared return type. Supply a preview callback with
+`Registry.Dry((context, args) => ...)`; use `Registry.Dry(realCallback)` only when
+that read is safe during dry execution. The callback is never called at registration.
+Dry mode is read from the invocation's `Context`; `InvocationResults.Select` can
+apply the collector's mode directly to a context.
 
 VM strings are immutable **bytes**, including NUL and invalid UTF-8. `Value.Str`
 accepts `VmString`, and `AsStr()` returns it. Construct from `ReadOnlySpan<byte>`
@@ -268,14 +277,16 @@ allowed after sealing. Serialize collector bookkeeping and shared registry calls
 the collector does not manage host tasks. Drain accepted work before framing.
 
 `FromCommand` reads `LMCODE_INVOCATION_FILE` without changing the environment. The
-private version-1 manifest must match the parsed file strings exactly. Without it,
+private version-1 manifest requires a boolean `dry` field and must match the parsed
+file strings exactly. Without it,
 one CLI occurrence means single, several mean builder (duplicates allowed).
 An explicit-null manifest overload supports standalone embedding and tests.
 Introspection does not construct a collector. There is no public manifest flag.
 
 Single success is `{"ok":true,"result":VALUE}`. Builder success is
 `{"ok":true,"result":[VALUE0,VALUE1],"parts":2}`, including `parts:1` for a
-one-slot builder. Missing completions fail rather than silently supplying null.
+one-slot builder. Dry envelopes append `"dry":true`; real envelopes omit the key.
+Missing completions fail rather than silently supplying null.
 `Fail(indexOrNull, phase, error)` retains the first failure and discards accumulated
 payloads. Known builder-slot failures carry `part` (including zero); single/global
 failures omit it. The phase is cli/load/run/app, with exits 2/3/3/4 respectively.
