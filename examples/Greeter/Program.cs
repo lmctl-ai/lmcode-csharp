@@ -8,9 +8,9 @@ registry.Function("greet", ["string"], "void", (_, values) =>
     Console.Error.WriteLine("Hello, " + values[0].AsStr());
     return Value.None;
 });
-if (args is ["--dsl-schema", "--json"]) { Console.OpenStandardOutput().Write(schema); return 0; }
-if (args is ["--dsl-signatures"]) { Console.WriteLine(string.Join('\n', registry.Signatures())); return 0; }
-if (args is not ["--dsl", var path]) { Console.Error.WriteLine("Usage: Greeter --dsl FILE | --dsl-schema --json | --dsl-signatures"); return 2; }
+if (args is ["--lmcode-schema", "--json"]) { Console.OpenStandardOutput().Write(schema); return 0; }
+if (args is ["--lmcode-signatures"]) { Console.WriteLine(string.Join('\n', registry.Signatures())); return 0; }
+if (args is not ["--lmcode", var path]) { Console.Error.WriteLine("Usage: Greeter --lmcode FILE | --lmcode-schema --json | --lmcode-signatures"); return 2; }
 VmProgram program;
 try { program = VmProgram.Load(File.ReadAllBytes(path), schema, registry); }
 catch (Error error) { return Reports.ReportError("load", error); }

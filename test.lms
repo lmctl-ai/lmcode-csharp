@@ -20,7 +20,7 @@ if (env("RUN_NATIVE") == "1") {
   for (p in projects) {
     step(["dotnet", "publish", p.project, "-c", "Release", "-r", rid, "--self-contained", "true", "-p:PublishAot=true", "-p:IlcTreatWarningsAsErrors=true", "-p:StripSymbols=true", "-o", "artifacts/" + p.name]);
   }
-  step([path_join(Directory, "artifacts/Greeter/Greeter" + ext), "--dsl", "examples/Greeter/hello.dslb"]);
+  step([path_join(Directory, "artifacts/Greeter/Greeter" + ext), "--lmcode", "examples/Greeter/hello.dslb"]);
   step([path_join(Directory, "artifacts/LmCode.Conformance/LmCode.Conformance" + ext), "conformance/vectors"]);
   step([path_join(Directory, "artifacts/LmCode.Conformance/LmCode.Conformance" + ext), "conformance/stdlib-vectors"]);
   step([path_join(Directory, "artifacts/LmCode.Tests/LmCode.Tests" + ext), "--string-catalog"]);
@@ -28,3 +28,16 @@ if (env("RUN_NATIVE") == "1") {
   step([path_join(Directory, "artifacts/LmCode.Tests/LmCode.Tests" + ext), "--return-vector-tests"]);
   step([path_join(Directory, "artifacts/RuleEntries/RuleEntries" + ext), "artifacts/rule-entries.dslb"]);
 }
+
+# Exercise the managed host contract even when NativeAOT is not selected.
+host = ["dotnet", "run", "-c", "Release", "--no-build", "--project", "examples/Greeter", "--"];
+retired = "--" + "dsl";
+for (suffix in ["", "-schema", "-signatures"]) {
+  args = [retired + suffix];
+  if (suffix == "") { args = [retired, "missing.dslb"]; }
+  result = system(concat(host, args));
+  assert(result.code == 2 && result.stdout == "", "retired option reached file loading");
+}
+result = system(concat(host, ["--lmcode-schema", "--json"]));
+assert(result.code == 0 && result.stdout == read_file("examples/Greeter/schema.json"), "schema bytes differ");
+step(concat(host, ["--lmcode", "examples/Greeter/hello.dslb"]));

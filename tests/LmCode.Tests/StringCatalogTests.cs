@@ -120,7 +120,7 @@ static class StringCatalogTests
             Console.WriteLine($"SKIP {catalog} compiler parity: lmscript is absent from PATH");
             return;
         }
-        // lmscript 0.2.420 builds std into the compiler: --dsl-signatures emits
+        // lmscript 0.2.420 builds std into the compiler: --lmcode-signatures emits
         // the full std set merged with the schema's functions, while
         // --without-std emits only what the schema adds on top of std.
         string[] all = CompilerSignatures(compiler, schemaPath, false);
@@ -163,11 +163,11 @@ static class StringCatalogTests
         if (OperatingSystem.IsWindows() && (compiler.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase) || compiler.EndsWith(".bat", StringComparison.OrdinalIgnoreCase)))
         {
             start.FileName = "cmd.exe";
-            start.Arguments = $"/d /s /c \"\"{compiler}\" --dsl-signatures \"{schemaPath}\"{(withoutStd ? " --without-std" : "")}\"";
+            start.Arguments = $"/d /s /c \"\"{compiler}\" --lmcode-signatures \"{schemaPath}\"{(withoutStd ? " --without-std" : "")}\"";
         }
         else
         {
-            start.ArgumentList.Add("--dsl-signatures");
+            start.ArgumentList.Add("--lmcode-signatures");
             start.ArgumentList.Add(schemaPath);
             if (withoutStd) start.ArgumentList.Add("--without-std");
         }
@@ -175,7 +175,7 @@ static class StringCatalogTests
         var stdout = process.StandardOutput.ReadToEndAsync();
         var stderr = process.StandardError.ReadToEndAsync();
         process.WaitForExit();
-        Require(process.ExitCode == 0, "lmscript --dsl-signatures failed: " + stderr.GetAwaiter().GetResult());
+        Require(process.ExitCode == 0, "lmscript --lmcode-signatures failed: " + stderr.GetAwaiter().GetResult());
         return stdout.GetAwaiter().GetResult().Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n', StringSplitOptions.RemoveEmptyEntries);
     }
 

@@ -19,7 +19,7 @@ SDK commit and matching compiler version.
 | **Greeter Example Host** | **Same Bytecode, Four Runtimes** |
 | --- | --- |
 | <img src="docs/images/greeter-example.png" width="440" alt="Greeter Example Host"> | <img src="docs/images/same-bytecode-four-runtimes.png" width="440" alt="Same Bytecode, Four Runtimes"> |
-| Minimal embedding host compiling and executing lmcode logic in .NET 8 / C#.<br>`dotnet run --project examples/Greeter -- --dsl hello.dslb` | Shared bytecode contract for C++, Rust, Go, and C#. This C# port verifies its pinned corpus; the image shows an earlier four-runtime snapshot. |
+| Historical pre-rename screenshot; current invocation:<br>`dotnet run --project examples/Greeter -- --lmcode hello.dslb` | Shared bytecode contract for C++, Rust, Go, and C#. This C# port verifies its pinned corpus; the image shows an earlier four-runtime snapshot. |
 
 ## Embed
 
@@ -40,9 +40,9 @@ registry.Function("greet", ["string"], "void", (_, values) =>
     Console.Error.WriteLine("Hello, " + values[0].AsStr());
     return Value.None;
 });
-if (args is ["--dsl-schema", "--json"]) { Console.OpenStandardOutput().Write(schema); return 0; }
-if (args is ["--dsl-signatures"]) { Console.WriteLine(string.Join('\n', registry.Signatures())); return 0; }
-if (args is not ["--dsl", var path]) return 2;
+if (args is ["--lmcode-schema", "--json"]) { Console.OpenStandardOutput().Write(schema); return 0; }
+if (args is ["--lmcode-signatures"]) { Console.WriteLine(string.Join('\n', registry.Signatures())); return 0; }
+if (args is not ["--lmcode", var path]) return 2;
 VmProgram program;
 try { program = VmProgram.Load(File.ReadAllBytes(path), schema, registry); }
 catch (Error error) { return Reports.ReportError("load", error); }
@@ -70,7 +70,7 @@ remainder by zero raise `RUN_ERROR`. Floats are binary64.
 dotnet build -c Release -warnaserror
 dotnet test
 dotnet run --project conformance/LmCode.Conformance
-dotnet run --project examples/Greeter -- --dsl examples/Greeter/hello.dslb
+dotnet run --project examples/Greeter -- --lmcode examples/Greeter/hello.dslb
 dotnet publish examples/Greeter -r linux-x64 -c Release -p:PublishAot=true
 ```
 
@@ -291,4 +291,4 @@ See [result ownership and framing](durable-memory/09-invocation-results.md).
 
 ## Historical literal names
 
-The documentation calls the language lmcode. `--dsl`, `--dsl-schema` and `--dsl-signatures` are current host flag literals; `DSLB` is the bytecode magic and `DSLB v6` is the current format name; `.dslb` is the current bytecode filename extension; `dsl.schema` is the current schema JSON key. Other code-formatted API names, paths, manifest names and diagnostic text retain their current literal spellings.
+The documentation calls the language lmcode. `--lmcode`, `--lmcode-schema` and `--lmcode-signatures` are current host flag literals; `DSLB` is the bytecode magic and `DSLB v6` is the current format name; `.dslb` is the current bytecode filename extension; `dsl.schema` is the current schema JSON key. Other code-formatted API names, paths, manifest names and diagnostic text retain their current literal spellings.
