@@ -20,6 +20,8 @@ with tempfile.TemporaryDirectory(prefix='r3-csharp-invocation-') as temporary:
     baseline=execute();assert baseline.returncode==0,(baseline.stdout,baseline.stderr)
     print('PASS invocation mutation baseline',flush=True)
     mutants=[
+        ('failure snapshot','src/LmCode/InvocationResults.cs','error.Snapshot()','error','failure snapshot aliased caller'),
+        ('missing environment','src/LmCode/InvocationResults.cs','FromCommand(parsedFiles,Environment.GetEnvironmentVariable("LMCODE_INVOCATION_FILE"))','FromCommand(parsedFiles,null)','environment/argv child fixture differs'),
         ('missing seal','src/LmCode/ResultSink.cs','IsSealed=true;return Json();','IsSealed=false;return Json();','missing refusal: sealed'),
         ('reused sink','src/LmCode/InvocationResults.cs','slot.Sink=new ResultSink(contract);','slot.Sink=slots.FirstOrDefault(s=>s.Sink is not null)?.Sink ?? new ResultSink(contract);','independent slot sinks'),
         ('wrong part','src/LmCode/InvocationResults.cs','builder?index:null','builder?0:null','first failure part'),

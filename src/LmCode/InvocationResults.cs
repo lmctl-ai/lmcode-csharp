@@ -40,7 +40,7 @@ public sealed class InvocationResults
     // Null explicitly selects standalone semantics; present-empty metadata is invalid.
     public static InvocationResults FromCommand(IReadOnlyList<string> parsedFiles,string? manifest) {
         if(manifest is not null) {
-            try {if(manifest.Length==0||manifest.Contains('\0')||!Path.IsPathFullyQualified(manifest))throw new Exception("manifest path must be absolute");
+            try {_=ResultJson.Quote(manifest);if(manifest.Length==0||manifest.Contains('\0')||!Path.IsPathFullyQualified(manifest))throw new Exception("manifest path must be absolute");
                 return FromMetadata(new UTF8Encoding(false,true).GetString(System.IO.File.ReadAllBytes(manifest)),parsedFiles);
             }catch(Error){throw;}catch(Exception e)when(e is not OutOfMemoryException){throw Invalid(e.Message);}
         }
@@ -62,7 +62,7 @@ public sealed class InvocationResults
     }
     public void Fail(int? index,string phase,Error error) {
         Active();if(failure is not null)return;if(index.HasValue)_=Get(index.Value);
-        _=ResultFrames.FailureJson(phase,error);failure=new(phase,error,builder?index:null);
+        _=ResultFrames.FailureJson(phase,error);failure=new(phase,error.Snapshot(),builder?index:null);
     }
     public int WriteFrame(Stream output) {
         if(finalized)return 4;

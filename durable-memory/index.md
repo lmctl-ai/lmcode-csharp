@@ -8,7 +8,7 @@ Repository: https://github.com/lmctl-ai/lmcode-csharp.
 ```sh
 dotnet build -c Release -warnaserror                   # Build solution with warnings as errors
 dotnet test                                            # Run unit tests
-dotnet run --project conformance/LmCode.Conformance   # Run 397 core conformance vectors
+dotnet run --project conformance/LmCode.Conformance   # Run 406 core conformance vectors
 dotnet publish examples/Greeter -r linux-x64 -c Release # NativeAOT standalone publish
 ```
 
@@ -25,7 +25,7 @@ dotnet publish examples/Greeter -r linux-x64 -c Release # NativeAOT standalone p
 
 ## Conformance vector sync
 
-Core and stdlib vectors are synced from `lmcode-cpp`:
+Core, stdlib, return and invocation vectors are synced from `lmcode-cpp`:
 ```sh
 scripts/sync-vectors.sh               # Sync vectors from ../lmcode-cpp
 scripts/sync-std.sh --verify          # Verify standard library schema parity
@@ -46,7 +46,7 @@ scripts/sync-std.sh --verify          # Verify standard library schema parity
 
 ## Releases and CI
 
-Continuous Integration runs on GitHub Actions across 5 platforms (Linux x64/arm64, macOS arm64/x64, Windows x64), verifying Release builds, unit tests, 397 core vectors, stdlib vectors, and NativeAOT publishing.
+Continuous Integration runs on GitHub Actions across 5 platforms (Linux x64/arm64, macOS arm64/x64, Windows x64), verifying Release builds, unit tests, 406 core vectors, stdlib vectors, and NativeAOT publishing.
 - [update-sample-suite.md](update-sample-suite.md): canonical sample-suite update and all-port verification rule.
 - [rule-methods-pin.md](rule-methods-pin.md) — compiler R47/R48 (schema `interfaces`, `@NAME`/`implements`): no runtime change, pin test and fixture regeneration.
 Releases/tags track SDK format versions and compatibility milestones.
@@ -55,4 +55,4 @@ R49: [v6 rule entry table](07-v6-entry-table.md).
 
 - [lmscript tests and releases](08-lmscript-releases.md)
 
-- [Invocation-owned results](09-invocation-results.md): sink lifetime, owned copies, numeric boundary, terminal framing and canonical return fixtures.
+- [Invocation-owned results](09-invocation-results.md): per-slot sealed sinks, result contracts, strict metadata, invocation envelopes and canonical native fixtures.

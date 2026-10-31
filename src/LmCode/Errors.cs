@@ -11,6 +11,7 @@ public sealed class Error : Exception
     public Error(string code, string message) : base(message) { Code = code; this.message = message; }
     internal static Error BadBytecode(string message) => new("LOAD_BAD_BYTECODE", message);
     public static Error Host(string message) => new("RUN_HOST", message);
+    internal Error Snapshot() => new Error(Code,message) {Line=Line,Column=Column};
     public void Locate(uint line, ushort column)
     {
         if (Line.HasValue || line == 0) return;

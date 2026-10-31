@@ -9,7 +9,8 @@ collector construction. Old sink-only framing and unframed Reports APIs are remo
 One sink per slot, retained across body/entries and arenas. Copies are owned;
 completion snapshots/seals. Active selection preserves its immutable contract.
 Sealed sinks reject writes/reset/selection/second completion. A completion contract
-failure latches its slot association. First failure wins even over invalid later
+failure latches its slot association. Failures snapshot the observed Error so later caller location changes cannot alter
+the envelope. First failure wins even over invalid later
 failure arguments. New work cannot start after failure; active slots may drain.
 Collector bookkeeping/shared registry access must be serialized by the host.
 
@@ -36,6 +37,9 @@ scripts/sync-vectors.sh reads committed C++ bytes for four suites and rewrites t
 locks. Copy fixture assets Always: git archive may preserve timestamps older than
 previous build output, so PreserveNewest could run stale bare-frame expectations.
 InvocationTests and InvocationVectorTests run in managed and NativeAOT gates.
+All 14 native goldens run both embedded and as real child processes reading the
+manifest environment; Unicode paths/argv survive both managed and NativeAOT.
+ResultContractTests covers 52 shape/nullability/widening/Json checks.
 check-invocation-controls.py requires compiled exit-1 assertion kills, never build
 failures/signals. Existing return ownership/numeric mutants remain enabled.
 

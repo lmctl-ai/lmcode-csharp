@@ -174,4 +174,3 @@ public sealed class ResultSink
         _=>throw Invalid("","handle"),
     };
 }
-
