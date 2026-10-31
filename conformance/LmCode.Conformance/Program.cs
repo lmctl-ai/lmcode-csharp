@@ -6,6 +6,7 @@ using LmCode.Stdlib;
 
 sealed class Thing { public long Id; public Thing(long id) => Id = id; }
 sealed class IntList { public readonly long[] Values = [0, 1, 2, 3]; }
+sealed record SinkExpectation(string Json, string Frame);
 
 sealed class Stub
 {
@@ -18,6 +19,7 @@ sealed class Stub
     public readonly ObjRef XsRef;
     public readonly MemoryStream Output = new();
     public readonly string TempDir;
+    public readonly ResultSink? Sink;
     private readonly bool standard;
 
     public Stub(bool standardCatalog)
@@ -26,7 +28,7 @@ sealed class Stub
         TempDir = standard ? Path.Combine(Path.GetTempPath(), "lmcode-" + Guid.NewGuid().ToString("N")) : "";
         if (standard) Directory.CreateDirectory(TempDir);
         Registry = new Registry(standardCatalog);
-        if (standardCatalog) Registry.SetResultSink(new ResultSink());
+        if (standardCatalog) { Sink = new ResultSink(); Registry.SetResultSink(Sink); }
         TraceRef = Context.Insert("Trace", Trace);
         RootRef = Context.Insert("Thing", new Thing(0));
         VarRef = Context.Insert("Var", new Thing(0));
@@ -184,7 +186,13 @@ static class Runner
         var failed = 0;
         foreach (var name in names)
         {
-            var exp = File.ReadAllLines(Path.Combine(dir, name + ".expect")); var kind = exp[0]; var lines = exp.Skip(1).Select(Unescape).ToArray(); var schemaName = schemaByName.TryGetValue(name, out var selectedSchema) ? selectedSchema : "schema.json"; var schemaBytes = File.ReadAllBytes(Path.Combine(dir, schemaName));
+            var rawExp = File.ReadAllLines(Path.Combine(dir, name + ".expect")); SinkExpectation? expectedSink = null;
+            if (rawExp.Length > 1 && rawExp[^1].StartsWith("sink ", StringComparison.Ordinal))
+            {
+                using var sinkDocument = JsonDocument.Parse(rawExp[^1][5..]); var sinkRoot = sinkDocument.RootElement;
+                expectedSink = new SinkExpectation(sinkRoot.GetProperty("json").GetString()!, sinkRoot.GetProperty("frame").GetString()!); rawExp = rawExp[..^1];
+            }
+            var exp = rawExp; var kind = exp[0]; var lines = exp.Skip(1).Select(Unescape).ToArray(); var schemaName = schemaByName.TryGetValue(name, out var selectedSchema) ? selectedSchema : "schema.json"; var schemaBytes = File.ReadAllBytes(Path.Combine(dir, schemaName));
             using var schemaDocument = JsonDocument.Parse(schemaBytes);
             var standardCatalog = name.StartsWith("return-", StringComparison.Ordinal) || (schemaDocument.RootElement.TryGetProperty("functions", out var functions) &&
                 new[] { "str_len", "math_abs", "str_list", "print", "file_read" }.Any(name => functions.TryGetProperty(name, out _)));
@@ -209,6 +217,9 @@ static class Runner
             if (lines.Length >= 3 && uint.TryParse(lines[1], out var expectedLine) && ushort.TryParse(lines[2], out var expectedColumn))
                 locationOk = (expectedLine == 0 ? caught is null || !caught.Line.HasValue : caught?.Line == expectedLine) && (expectedColumn == 0 ? caught is null || !caught.Column.HasValue : caught?.Column == expectedColumn);
             var exactMessage = BareMessage(caught, error);
+            var actualFrame = "";
+            if (expectedSink is not null && loaded && ran && (!kind.StartsWith("call", StringComparison.Ordinal) || called) && error.Length == 0 && stub.Sink is not null)
+                actualFrame = Encoding.UTF8.GetString(ResultFrames.Encode(stub.Sink));
             if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("LMCODE_TRACE")))
             {
                 foreach (string value in stub.Trace) Console.WriteLine($"TRACE\t{name}\t{value}");
@@ -218,6 +229,7 @@ static class Runner
             if (kind == "call_error_at" && lines.Length >= 5 && uint.TryParse(lines[2], out var callLine) && ushort.TryParse(lines[3], out var callColumn))
                 callAt = LocationMatches(caught, callLine, callColumn);
             var ok = kind == "trace" ? ran && stub.Trace.Count == lines.Length && stub.Trace.Zip(lines).All(x => Match(x.First, x.Second)) : kind == "entries" ? loaded && program!.Entries.Select(e => $"{e.Name} {e.Annotation} {e.Iface}").SequenceEqual(lines) : kind == "call" ? loaded && ran && called && lines.Length >= 2 && ResultMatches(lines[1], callResult, stub.Context) && stub.Trace.Count == lines.Length - 2 && stub.Trace.Zip(lines.Skip(2)).All(x => Match(x.First, x.Second)) : kind == "call_error" ? loaded && !called && lines.Length == 3 && code == lines[1] && error.Contains(lines[2], StringComparison.Ordinal) : kind == "call_error_at" ? loaded && !called && lines.Length >= 5 && code == lines[1] && callAt && error.Contains(lines[4], StringComparison.Ordinal) : kind == "runtime_error" ? loaded && !ran && error.Contains(lines[0], StringComparison.Ordinal) : kind == "runtime_error_exact" ? loaded && !ran && lines.Length == 2 && code == lines[0] && exactMessage == lines[1] : kind == "runtime_error_file" ? loaded && !ran && lines.Length >= 3 && code == lines[0] && exactMessage.StartsWith(lines[1] + ": ", StringComparison.Ordinal) && exactMessage.Contains(lines[2], StringComparison.Ordinal) : kind == "runtime_error_at" ? loaded && !ran && lines.Length >= 4 && code == lines[0] && locationOk && error.Contains(lines[3], StringComparison.Ordinal) : kind == "load_error" && !loaded && error.Contains(lines[0], StringComparison.Ordinal);
+            if (ok && expectedSink is not null && stub.Sink is not null) ok = stub.Sink.Json() == expectedSink.Json && actualFrame == expectedSink.Frame;
             Console.WriteLine((ok ? "ok - " : "FAIL - ") + name + " (" + kind + ")"); if (!ok) { failed++; Console.WriteLine("    error: " + error); }
             if (stub.TempDir.Length != 0) try { Directory.Delete(stub.TempDir, true); } catch { }
         }
