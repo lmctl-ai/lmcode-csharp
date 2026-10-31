@@ -57,7 +57,7 @@ public sealed partial class Program
                     case Op.CALL_FN:
                     {
                         Binding b = imports[reader.U16()]; var a = Args(stack, reader.U8());
-                        if (a.Any(value => value.IsDryNull)) throw Error.Host("dry null cannot be passed to a host callback");
+                        if ((!context.Dry || b.DryFunction is not null) && !(context.Dry && b.ResultConversion) && a.Any(value => value.IsDryNull)) throw Error.Host("dry null cannot be passed to a host callback");
                         Value v;
                         if (context.Dry)
                         {
@@ -70,11 +70,11 @@ public sealed partial class Program
                     case Op.CALL_METHOD:
                     {
                         Binding b = imports[reader.U16()]; var a = Args(stack, reader.U8()); Value self = Pop(stack);
+                        if (self.Kind == ValueKind.DryNull && (!context.Dry || !self.IsDryNull)) throw Error.Host("invalid dry null provenance in method receiver");
+                        if (context.Dry && b.DryMethod is null) { Value skipped = owner.DryDummy(context, b.Returns); if (skipped.Kind != ValueKind.None) stack.Add(skipped); break; }
                         if (a.Any(value => value.IsDryNull)) throw Error.Host("dry null cannot be passed to a host callback");
                         if (self.Kind == ValueKind.DryNull)
                         {
-                            if (!context.Dry || !self.IsDryNull) throw Error.Host("invalid dry null provenance in method receiver");
-                            if (b.DryMethod is null) { Value skipped = owner.DryDummy(context, b.Returns); if (skipped.Kind != ValueKind.None) stack.Add(skipped); break; }
                             throw Error.Host($"method {b.TypeName}.{b.Name} requires a concrete receiver after dry null");
                         }
                         if (self.Kind != ValueKind.Obj || self.TypeName != b.TypeName) throw new Error("RUN_ERROR", $"method {b.TypeName}.{b.Name} called on a {(self.Kind == ValueKind.Obj ? self.TypeName : self.KindName)}");
