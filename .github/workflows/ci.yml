@@ -4,6 +4,11 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      compiler_version:
+        description: "Published @lmctl-ai/lmctl version"
+        required: false
+        default: "0.2.444"
 permissions:
   contents: read
 concurrency:
@@ -11,6 +16,7 @@ concurrency:
   cancel-in-progress: false
 env:
   SAMPLE_VERSION: 6.0.${{ github.run_number }}
+  LMCODE_COMPILER_VERSION: ${{ inputs.compiler_version || vars.LMCODE_COMPILER_VERSION || '0.2.444' }}
 jobs:
   build:
     strategy:
@@ -38,7 +44,9 @@ jobs:
           dotnet-version: '8.0.x'
       - name: Install compiler and native prerequisites
         run: |
-          npm install -g @lmctl-ai/lmctl
+          npm install --prefix "$RUNNER_TEMP/lmcode-lmctl" "@lmctl-ai/lmctl@$LMCODE_COMPILER_VERSION"
+          echo "$RUNNER_TEMP/lmcode-lmctl/node_modules/.bin" >> "$GITHUB_PATH"
+          lmscript --version
           if [[ "$RUNNER_OS" == Linux ]]; then sudo apt-get update && sudo apt-get install -y clang zlib1g-dev; fi
       - name: Build and test managed and NativeAOT executables
         env:
