@@ -13,7 +13,7 @@ if (args is ["--lmcode-signatures"]) { Console.WriteLine(string.Join('\n', regis
 if (args is not ["--lmcode", var path]) { Console.Error.WriteLine("Usage: Greeter --lmcode FILE | --lmcode-schema --json | --lmcode-signatures"); return 2; }
 VmProgram program;
 try { program = VmProgram.Load(File.ReadAllBytes(path), schema, registry); }
-catch (Error error) { return Reports.ReportError("load", error); }
-catch (IOException error) { return Reports.ReportError("load", new Error("LOAD_BAD_BYTECODE", error.Message)); }
-try { program.Run(new Context(), registry); return Reports.ReportOk("null"); }
-catch (Error error) { return Reports.ReportError("run", error); }
+catch (Error error) { return ResultFrames.FailureFrame(Console.OpenStandardOutput(),"load", error); }
+catch (IOException error) { return ResultFrames.FailureFrame(Console.OpenStandardOutput(),"load", new Error("LOAD_BAD_BYTECODE", error.Message)); }
+try { var results=InvocationResults.FromCommand([path]);results.Select(0,registry,ResultContract.FromSchema(System.Text.Encoding.UTF8.GetString(schema)));program.Run(new Context(), registry);results.Complete(0);return results.WriteFrame(Console.OpenStandardOutput()); }
+catch (Error error) { return ResultFrames.FailureFrame(Console.OpenStandardOutput(),"run", error); }

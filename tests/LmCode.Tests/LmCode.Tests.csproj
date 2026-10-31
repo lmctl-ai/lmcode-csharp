@@ -10,16 +10,17 @@
     <ProjectReference Include="../../src/LmCode/LmCode.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <None Update="Fixtures/**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <None Include="../../stdlib/string.schema-fragment.json" Link="Fixtures/string.schema-fragment.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <None Include="../../stdlib/math.schema-fragment.json" Link="Fixtures/math.schema-fragment.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <None Include="../../stdlib/collections.schema-fragment.json" Link="Fixtures/collections.schema-fragment.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <None Include="../../stdlib/testing.schema-fragment.json" Link="Fixtures/testing.schema-fragment.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <None Include="../../stdlib/file.schema-fragment.json" Link="Fixtures/file.schema-fragment.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <None Include="../../conformance/return-vectors/**" Link="Fixtures/return-vectors/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="Fixtures/**" CopyToOutputDirectory="Always" CopyToPublishDirectory="Always" />
+    <None Include="../../stdlib/string.schema-fragment.json" Link="Fixtures/string.schema-fragment.json" CopyToOutputDirectory="Always" CopyToPublishDirectory="Always" />
+    <None Include="../../stdlib/math.schema-fragment.json" Link="Fixtures/math.schema-fragment.json" CopyToOutputDirectory="Always" CopyToPublishDirectory="Always" />
+    <None Include="../../stdlib/collections.schema-fragment.json" Link="Fixtures/collections.schema-fragment.json" CopyToOutputDirectory="Always" CopyToPublishDirectory="Always" />
+    <None Include="../../stdlib/testing.schema-fragment.json" Link="Fixtures/testing.schema-fragment.json" CopyToOutputDirectory="Always" CopyToPublishDirectory="Always" />
+    <None Include="../../stdlib/file.schema-fragment.json" Link="Fixtures/file.schema-fragment.json" CopyToOutputDirectory="Always" CopyToPublishDirectory="Always" />
+    <None Include="../../conformance/invocation-vectors/**" Link="Fixtures/invocation-vectors/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="Always" CopyToPublishDirectory="Always" />
+    <None Include="../../conformance/return-vectors/**" Link="Fixtures/return-vectors/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="Always" CopyToPublishDirectory="Always" />
     <None Include="../../std/template-cases.json" Link="Fixtures/template-cases.json" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../../std/std.lock" Link="Fixtures/std.lock" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <None Include="../../std/lmcode-std.schema.json" Link="Fixtures/lmcode-std.schema.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../../std/std.lock" Link="Fixtures/std.lock" CopyToOutputDirectory="Always" CopyToPublishDirectory="Always" />
+    <None Include="../../std/lmcode-std.schema.json" Link="Fixtures/lmcode-std.schema.json" CopyToOutputDirectory="Always" CopyToPublishDirectory="Always" />
   </ItemGroup>
   <Target Name="RunConsoleTests" AfterTargets="VSTest" DependsOnTargets="Build">
     <Exec Command="dotnet &quot;$(TargetPath)&quot;" />

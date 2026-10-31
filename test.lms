@@ -9,6 +9,7 @@ step(["dotnet", "build", "-c", "Release", "-warnaserror"]);
 set_env("LMCODE_COMPILER_EXPLICIT_STD", "1");
 step(["dotnet", "test", "-c", "Release", "--no-build"]);
 step(["python3", "scripts/check-return-controls.py"]);
+step(["python3", "scripts/check-invocation-controls.py"]);
 step(["dotnet", "run", "-c", "Release", "--project", "conformance/LmCode.Conformance", "--", "conformance/vectors"]);
 step(["dotnet", "run", "-c", "Release", "--project", "conformance/LmCode.Conformance", "--", "conformance/stdlib-vectors"]);
 step(["bash", "scripts/compile-example.sh"]);
@@ -25,6 +26,7 @@ if (env("RUN_NATIVE") == "1") {
   step([path_join(Directory, "artifacts/LmCode.Conformance/LmCode.Conformance" + ext), "conformance/stdlib-vectors"]);
   step([path_join(Directory, "artifacts/LmCode.Tests/LmCode.Tests" + ext), "--string-catalog"]);
   step([path_join(Directory, "artifacts/LmCode.Tests/LmCode.Tests" + ext), "--return-tests"]);
+  step([path_join(Directory, "artifacts/LmCode.Tests/LmCode.Tests" + ext), "--invocation-tests"]);
   step([path_join(Directory, "artifacts/LmCode.Tests/LmCode.Tests" + ext), "--return-vector-tests"]);
   step([path_join(Directory, "artifacts/RuleEntries/RuleEntries" + ext), "artifacts/rule-entries.dslb"]);
 }

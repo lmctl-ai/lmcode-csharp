@@ -7,7 +7,7 @@
 - Arbitrary C printf rounding outside the pinned vectors is not exhaustively
   certified. Keep float edge cases in the shared vector contract.
 - Byte-oriented host results/errors: `VmString` preserves arbitrary bytes, but
-  `Reports.JsonEscape` and `Error.Message` accept only .NET Unicode strings.
+  `ResultJson.Quote` and `Error.Message` accept only .NET Unicode strings.
   Decoding an invalid UTF-8 note or host rejection message replaces bytes with
   U+FFFD and differs from the C++ host's byte-preserving error/result protocol.
   The C# shop sample writes successful note JSON as raw bytes locally; a future

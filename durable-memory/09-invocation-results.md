@@ -1,43 +1,44 @@
-# Invocation-owned results (slice 2, C#)
+# Invocation result envelopes (amendment R3)
 
-The default standard registry has 206 signatures, including 24 return imports.
-`Registry.SetResultSink(ResultSink?)` binds an external invocation-owned sink;
-callbacks read that registry's current sink, with no process-global fallback.
-Result storage never enters `CollectionsCatalog` or resets on Run/Call boundaries.
-Hosts reset once before each logical program, keep one sink across body and selected
-entries, then write a frame only after application validation. Entry HALT values
-are unchanged. Failures emit no frame in the host-composition fixture runner.
+Public API: InvocationResults.FromCommand(parsedFiles), FromMetadata(raw,files),
+Registrations (parser order with canonical indices), Select(index,registry,contract),
+Complete(index), Fail(indexOrNull,phase,error), WriteFrame(stream). See README for
+lifecycle and exact envelope shapes. Use ResultFrames.FailureFrame for errors before
+collector construction. Old sink-only framing and unframed Reports APIs are removed.
 
-`ResultSink.Set(Context,Value)`, `Put(Context,VmString,Value)`, `SetNull`, `PutNull`,
-`Reset` and `Json` provide conversion/ownership helpers. Accepted values are the
-consensus scalar, Json and typed list/map types. Json AST access remains internal;
-no new general Json mutation/builder API was introduced. Copies validate full
-subtrees before committing a write. Keys are strict UTF-8; overwrite preserves
-insertion order, and null promotes to an object only after successful validation.
+One sink per slot, retained across body/entries and arenas. Copies are owned;
+completion snapshots/seals. Active selection preserves its immutable contract.
+Sealed sinks reject writes/reset/selection/second completion. A completion contract
+failure latches its slot association. First failure wins even over invalid later
+failure arguments. New work cannot start after failure; active slots may drain.
+Collector bookkeeping/shared registry access must be serialized by the host.
 
-Number conversion inspects retained raw decimal tokens, including exponent-form
-mathematical integers, rather than trusting already-rounded double values. Finite
-fractional binary64 is allowed; unsafe integral values, nonfinite data and nonzero
-underflow are RUN_HOST with JSON Pointer paths and fixed reason codes. Floats are
-serialized by default invariant .NET double formatting, never Formatting.FormatG15
-or G17. The exact .1+.2 frame is 0.30000000000000004; -0 becomes 0. Exponent casing
-follows the .NET formatter and remains valid shortest-round-trip JSON.
+Manifest validation is strict: version/mode/keys/contiguous indices, unique absolute
+files, exact complete registrations, UTF-8 without BOM, duplicate keys and unsafe
+raw numbers refused. Standalone repeated CLI occurrences allow duplicate paths.
+No process environment mutation; inherited context is read only for execution.
 
-`ResultFrames.Encode` returns strict UTF-8 bytes and `Write(Stream,ResultSink)`
-writes those bytes with LF/no BOM and flushes before success. Deferred write/flush
-I/O errors map to RUN_HOST `lmcode return: cannot write result frame`. The SDK does not print implicitly. Hosts own
-application exit policy and stream I/O failure handling. Reports.ReportOk is still
-ordinary diagnostics, not an inferred return channel. Samples adopt reporters in
-separate slices; old example protocols were not silently changed by this SDK port.
+ResultContract.FromSchema retains schema-2 optional result metadata independently
+from invocation metadata. Validate writes atomically and completion; reset null is
+unfinished. Json is JSON-wide. Known native collection identity is checked even for
+empty collections; int widens only toward float. No general coercion. No contract
+means any valid JSON including null. Host metadata outside result is not subjected
+to result numeric constraints. No new imports/opcodes/VM types or version change.
 
-Canonical schema/docs are copied from committed lmcode-cpp text and digest-pinned
-in std/std.lock. Core, standard and return corpora have separate tree pins; the
-return corpus also retains its upstream per-file vectors.lock. Sync helpers read
-only committed source bytes; no local regeneration stands in for canonical data.
+One compact terminal envelope per invocation, not per part. Add-order aggregation,
+required builder parts, missing completion failure, no partial results on failure.
+Known builder slot includes part; single/global omit. Stream flush failure returns
+4 and permanently finalizes the collector. No retry, deadline or output limit.
+Error.Message (including the existing located diagnostic prefix) matches the C++
+canonical bytes; line/column are also explicit failure members.
 
-`dotnet test` runs numeric/sink tests and all nine return fixtures. The isolated
-Python source-mutation gate proves arena teardown, reset-between-calls, source
-mutation alias, missing sink, bad retained numeric token and G15 formatter bugs
-are rejected by actual assertions, not compile failures. NativeAOT runs return
-unit and framing suites through test.lms. Existing registry limits/concurrency
-rules and std Json parsing behavior outside the result boundary are preserved.
+scripts/sync-vectors.sh reads committed C++ bytes for four suites and rewrites tree
+locks. Copy fixture assets Always: git archive may preserve timestamps older than
+previous build output, so PreserveNewest could run stale bare-frame expectations.
+InvocationTests and InvocationVectorTests run in managed and NativeAOT gates.
+check-invocation-controls.py requires compiled exit-1 assertion kills, never build
+failures/signals. Existing return ownership/numeric mutants remain enabled.
+
+Mixed protocol warning: do not release or restore compatibility reporters. R7
+owns the external C# sample's full multi-part adapter adoption; do not merely repin
+an old adapter against removed APIs. SDK examples are migrated with the SDK.

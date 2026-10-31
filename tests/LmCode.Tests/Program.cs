@@ -8,6 +8,7 @@ static class Tests
         if (args is ["--vector-pins"]) { VectorPinTests.Run(); return 0; }
         if (args is ["--entry-tests"]) { EntryTests.Run(); return 0; }
         if (args is ["--string-catalog"]) { StringCatalogTests.Run(); return 0; }
+        if(args is ["--invocation-tests"]) {try{InvocationTests.Run();InvocationVectorTests.Run();return 0;}catch(Exception e){Console.Error.WriteLine("FAIL invocation tests: "+e.Message);return 1;}}
         if (args is ["--return-tests"]) {
             try {ResultJsonTests.Run();ResultSinkTests.Run();return 0;}
             catch(Exception error) {Console.Error.WriteLine("FAIL return tests: "+error.Message);return 1;}
@@ -31,7 +32,7 @@ static class Tests
         foreach (var (name, check) in checks)
             if (!check()) return Fail(name);
         TemplateTests.Run();
-        int results=ResultJsonTests.Run()+ResultSinkTests.Run()+ReturnVectorTests.Run();
+        int results=ResultJsonTests.Run()+ResultSinkTests.Run()+ReturnVectorTests.Run()+InvocationTests.Run()+InvocationVectorTests.Run();
         if (!RuntimeTests.Run()) return Fail("runtime tests");
         int verified = VerifierTests.Run();
         int catalog = StringCatalogTests.Run();
@@ -79,8 +80,8 @@ static class Tests
     static bool ReportJsonLocation()
     {
         var e = new Error("RUN_ERROR", "bad"); e.Locate(7, 3);
-        var json = Reports.ErrorJson("run", e);
-        return json.Contains("\"code\": \"RUN_ERROR\"", StringComparison.Ordinal) && json.Contains("\"line\": 7", StringComparison.Ordinal) && json.Contains("\"column\": 3", StringComparison.Ordinal);
+        using var output=new MemoryStream();ResultFrames.FailureFrame(output,"run",e);var json=System.Text.Encoding.UTF8.GetString(output.ToArray());
+        return json.Contains("\"code\":\"RUN_ERROR\"", StringComparison.Ordinal) && json.Contains("\"line\":7", StringComparison.Ordinal) && json.Contains("\"column\":3", StringComparison.Ordinal);
     }
     static bool CollectionConstructors()
     {

@@ -45,9 +45,14 @@ if (args is ["--lmcode-signatures"]) { Console.WriteLine(string.Join('\n', regis
 if (args is not ["--lmcode", var path]) return 2;
 VmProgram program;
 try { program = VmProgram.Load(File.ReadAllBytes(path), schema, registry); }
-catch (Error error) { return Reports.ReportError("load", error); }
-try { program.Run(new Context(), registry); return Reports.ReportOk("null"); }
-catch (Error error) { return Reports.ReportError("run", error); }
+catch (Error error) { return ResultFrames.FailureFrame(Console.OpenStandardOutput(), "load", error); }
+var results = InvocationResults.FromCommand([path]);
+try {
+    results.Select(0, registry, ResultContract.FromSchema(System.Text.Encoding.UTF8.GetString(schema)));
+    program.Run(new Context(), registry);
+    results.Complete(0);
+} catch (Error error) { results.Fail(0, "run", error); }
+return results.WriteFrame(Console.OpenStandardOutput());
 ```
 
 `Registry.Context(name, type)` declares an object name; `Context.SetObject(name,
@@ -147,7 +152,7 @@ The host owns callback thread safety. There are no VM time or memory budgets;
 `Error` exposes `Code`, `Message`, nullable `Line` and `Column`. Host callbacks throw
 `Error.Host(message)` for `RUN_HOST`; source positions are attached once at the
 faulting instruction. Other codes are `LOAD_BAD_BYTECODE`, `LOAD_SCHEMA_MISMATCH`,
-`LOAD_UNBOUND`, `RUN_ERROR`, and `APP_FAIL`. `Reports` emits one JSON result line;
+`LOAD_UNBOUND`, `RUN_ERROR`, and `APP_FAIL`. `ResultFrames.FailureFrame` emits a terminal failure envelope;
 load/run failures return exit 3 and application failure returns 4. Hosts remain
 responsible for their own I/O exceptions.
 
@@ -241,54 +246,59 @@ The standard `template_render(string, Json) -> string` function renders arbitrar
 
 `new Registry()` installs all 24 `lmcode_return_*` imports: set/put overloads for
 int, float, bool, string, Json, StrList/IntList/FloatList and StrMap/IntMap/FloatMap,
-plus root and field null writes. Bind one `ResultSink` before the body, retain it
-across selected entry calls, and reset only before the next logical invocation:
+plus root and field null writes. Each invocation owns an `InvocationResults`
+collector, with one independent `ResultSink` per program slot:
 
 ```csharp
-var registry = new Registry();
-var sink = new ResultSink();
-registry.SetResultSink(sink);
-// Register host functions, then bind the program to this same registry.
-var program = LmCode.Program.Load(bytecode, schema, registry);
-var context = new Context();
-sink.Reset();
-program.Run(context, registry);
-// Dispatch selected program.Call(...) entries and validate the application here.
-Reports.ReportOk("null"); // optional existing host diagnostics, before the frame
-ResultFrames.Write(Console.OpenStandardOutput(), sink);
+var results = InvocationResults.FromCommand(parsedFiles);
+foreach (var part in results.Registrations) {
+    // Load the program against its authoritative host schema before selecting.
+    var sink = results.Select(part.Index, registry, ResultContract.FromSchema(schemaText));
+    program.Run(context, registry);
+    // Call the host-selected entries using this same sink, then:
+    results.Complete(part.Index);
+}
+return results.WriteFrame(Console.OpenStandardOutput());
 ```
 
-A failed body, entry or application check takes the host's diagnostic/error path
-without calling `ResultFrames.Write`. Native registration, writes and VM execution
-never print a result themselves. `ResultFrames.Encode(sink)` provides raw UTF-8
-bytes; the writer uses LF and no BOM on every OS. Unset and explicit null frame as
-`LMCODE_RETURN_BEGIN\nnull\nLMCODE_RETURN_END\n`.
+`Registrations` retains parser order and exposes canonical add indices. Execution
+may be reversed/interleaved; output stays in add order. `Select` retains an active
+slot; `Complete` validates, snapshots and seals it. No write/reset/reselection is
+allowed after sealing. Serialize collector bookkeeping and shared registry calls;
+the collector does not manage host tasks. Drain accepted work before framing.
 
-Writes validate and capture owned copies, independent of arena resets and later
-source mutations. Put promotes null to an object, preserves insertion position on
-overwrite, and rejects scalar/list roots. Failed conversion leaves the prior sink
-unchanged. Missing configuration raises RUN_HOST `lmcode return: no result sink`.
-Use separate sinks and registries for overlapping invocations, following the
-existing registry concurrency discipline. Bind null to clear the configured sink.
+`FromCommand` reads `LMCODE_INVOCATION_FILE` without changing the environment. The
+private version-1 manifest must match the parsed file strings exactly. Without it,
+one CLI occurrence means single, several mean builder (duplicates allowed).
+An explicit-null manifest overload supports standalone embedding and tests.
+Introspection does not construct a collector. There is no public manifest flag.
 
-The result boundary rejects invalid UTF-8 keys/values, cycles, unsupported handles,
-nonfinite numbers, unsafe mathematical integers outside ±9007199254740991 and
-nonzero numeric underflow. Retained Json number tokens are checked before rounding
-can hide their value. Negative zero becomes zero. Frame floats use .NET 8's default
-`double.ToString(CultureInfo.InvariantCulture)`, independently of legacy G15:
-`0.1+0.2` frames as **0.30000000000000004**, while `0.1` stays shortest as `0.1`.
-The canonical catalog remains v3 and bytecode remains DSLB v6.
+Single success is `{"ok":true,"result":VALUE}`. Builder success is
+`{"ok":true,"result":[VALUE0,VALUE1],"parts":2}`, including `parts:1` for a
+one-slot builder. Missing completions fail rather than silently supplying null.
+`Fail(indexOrNull, phase, error)` retains the first failure and discards accumulated
+payloads. Known builder-slot failures carry `part` (including zero); single/global
+failures omit it. The phase is cli/load/run/app, with exits 2/3/3/4 respectively.
+`ResultFrames.FailureFrame(stream, phase, error)` covers pre-collector failures.
+All envelopes use one terminal BEGIN/END frame and strict UTF-8, with compact JSON
+and a final LF. `WriteFrame` flushes, returns the exit code, and is single-shot even
+after output failure (exit 4). It never retries output. Needed host summaries must
+be separate tagged diagnostics before framing. The VM itself never prints.
 
-Full local gate with a private compiler:
+Optional schema-2 `result` metadata constrains each slot independently. Its required
+`type` accepts null/bool/int/float/string/Json, StrList/IntList/FloatList and
+StrMap/IntMap/FloatMap. `nullable` defaults false; type null forbids that key.
+Unknown keys/types are LOAD_BAD_SCHEMA. No declaration permits any JSON, including
+null. Json permits nested null; homogeneous collections do not. Known int values
+and integer collections widen to their float counterparts; Json values defer to
+runtime shape validation. Writes validate owned copies atomically. Reset's null is
+unfinished state; explicit null/completion validates. No-write nonnullable results
+fail at completion. All 24 ordinary return imports and bytecode v6 remain unchanged.
 
-```sh
-RUN_NATIVE=1 RUNTIME_ID=linux-x64 \
-LMSCRIPT_BIN=/tmp/s2-csharp-lmctl/node_modules/.bin/lmscript ./test.sh
-```
-It includes the pinned C++ return fixtures and six actual-source mutation controls;
-NativeAOT executes both new return suites. No manual Actions dispatch is needed.
-See [result ownership and framing](durable-memory/09-invocation-results.md).
+Canonical fixtures are synchronized with `LMCODE_CPP_DIR=/your/private/lmcode-cpp
+bash scripts/sync-vectors.sh`. This includes core/catalog/return/invocation suites,
+all hash pinned. Native goldens exercise shared state, reversed dispatch, repeated
+programs, entry errors and exact failure/success bytes. The full test entry point
+runs real compiled sealing/shared-sink/part/flush mutation controls.
 
-## Historical literal names
-
-The documentation calls the language lmcode. `--lmcode`, `--lmcode-schema` and `--lmcode-signatures` are current host flag literals; `DSLB` is the bytecode magic and `DSLB v6` is the current format name; `.dslb` is the current bytecode filename extension; `dsl.schema` is the current schema JSON key. Other code-formatted API names, paths, manifest names and diagnostic text retain their current literal spellings.
+No release during the mixed-protocol window: sample adapter migration is R7.

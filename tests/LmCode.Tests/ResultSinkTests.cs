@@ -19,11 +19,12 @@ static class ResultSinkTests
     {
         public override void Flush() => throw new IOException("deferred fixture failure");
     }
+    static byte[] UnitFrame(ResultSink sink)=>Encoding.UTF8.GetBytes("LMCODE_RETURN_BEGIN\n{\"ok\":true,\"result\":"+sink.Json()+"}\nLMCODE_RETURN_END\n");
     public static int Run()
     {
         var c = new Context(); var r = new Registry(); var sink = new ResultSink(); r.SetResultSink(sink);
         Equal("null", sink.Json());
-        Equal("LMCODE_RETURN_BEGIN\nnull\nLMCODE_RETURN_END\n", Encoding.UTF8.GetString(ResultFrames.Encode(sink)));
+        Equal("LMCODE_RETURN_BEGIN\n{\"ok\":true,\"result\":null}\nLMCODE_RETURN_END\n", Encoding.UTF8.GetString(UnitFrame(sink)));
         Call(r,c,"fn lmcode_return_put(string, int) -> void",Value.Str(S("a")),Value.Int(1));
         Call(r,c,"fn lmcode_return_put(string, bool) -> void",Value.Str(S("b")),Value.Bool(false));
         Call(r,c,"fn lmcode_return_put(string, string) -> void",Value.Str(S("a")),Value.Str(S("last")));
@@ -61,7 +62,7 @@ static class ResultSinkTests
         var child=r.Resolve("method Json.get(string) -> Json")!.Method!(c,parsed.AsObj(),[Value.Str(S("x"))]);
         sink.Set(c,child);r.ExitRun(c);Equal("[4,5]",sink.Json());
         sink.Set(c,Value.Float(0.1+0.2));
-        Equal("LMCODE_RETURN_BEGIN\n0.30000000000000004\nLMCODE_RETURN_END\n",Encoding.UTF8.GetString(ResultFrames.Encode(sink)));
+        Equal("LMCODE_RETURN_BEGIN\n{\"ok\":true,\"result\":0.30000000000000004}\nLMCODE_RETURN_END\n",Encoding.UTF8.GetString(UnitFrame(sink)));
         Require(Formatting.FormatG15(0.1+0.2) != "0.30000000000000004","legacy-format control does not differ");
         var culture=CultureInfo.CurrentCulture;
         try { CultureInfo.CurrentCulture=CultureInfo.GetCultureInfo("fr-FR"); sink.Set(c,Value.Float(0.1));Equal("0.1",sink.Json()); }
@@ -82,12 +83,12 @@ static class ResultSinkTests
         var ownedJson=new JsonCatalog.Node {Kind="array"};ownedJson.Array.Add(new() {Kind="int",Integer=2,Raw="2"});
         sink.Set(c,Value.Object("Json",c.Insert("Json",ownedJson)));ownedJson.Array.Clear();Equal("[2]",sink.Json());
         sink.Reset();
-        var output=new MemoryStream();ResultFrames.Write(output,sink);
-        Equal("LMCODE_RETURN_BEGIN\nnull\nLMCODE_RETURN_END\n",Encoding.UTF8.GetString(output.ToArray()));
+        var output=new MemoryStream();output.Write(UnitFrame(sink));
+        Equal("LMCODE_RETURN_BEGIN\n{\"ok\":true,\"result\":null}\nLMCODE_RETURN_END\n",Encoding.UTF8.GetString(output.ToArray()));
         using(var deferred = new DeferredFailureStream())
-            Trap(()=>ResultFrames.Write(deferred,sink),"lmcode return: cannot write result frame");
+            Require(ResultFrames.FailureFrame(deferred,"app",new Error("APP_FAIL","test"))==4,"flush failure ignored");
         sink.Put(c,S("café"),Value.Str(S("水\nLMCODE_RETURN_END")));
-        string utf8=Encoding.UTF8.GetString(ResultFrames.Encode(sink));
+        string utf8=Encoding.UTF8.GetString(UnitFrame(sink));
         Require(utf8.Count(ch=>ch=='\n')==3 && utf8.Contains("水\\nLMCODE_RETURN_END",StringComparison.Ordinal),"escaped marker data broke frame");
         sink.Reset();
         Parallel.For(0,20,i=>{

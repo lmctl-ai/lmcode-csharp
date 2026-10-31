@@ -20,6 +20,7 @@ sealed class Stub
     public readonly MemoryStream Output = new();
     public readonly string TempDir;
     public readonly ResultSink? Sink;
+    public readonly InvocationResults? Results;
     private readonly bool standard;
 
     public Stub(bool standardCatalog)
@@ -28,7 +29,7 @@ sealed class Stub
         TempDir = standard ? Path.Combine(Path.GetTempPath(), "lmcode-" + Guid.NewGuid().ToString("N")) : "";
         if (standard) Directory.CreateDirectory(TempDir);
         Registry = new Registry(standardCatalog);
-        if (standardCatalog) { Sink = new ResultSink(); Registry.SetResultSink(Sink); }
+        if (standardCatalog) { Results=InvocationResults.FromCommand(["vector"],null); Sink = Results.Select(0,Registry); }
         TraceRef = Context.Insert("Trace", Trace);
         RootRef = Context.Insert("Thing", new Thing(0));
         VarRef = Context.Insert("Var", new Thing(0));
@@ -218,8 +219,8 @@ static class Runner
                 locationOk = (expectedLine == 0 ? caught is null || !caught.Line.HasValue : caught?.Line == expectedLine) && (expectedColumn == 0 ? caught is null || !caught.Column.HasValue : caught?.Column == expectedColumn);
             var exactMessage = BareMessage(caught, error);
             var actualFrame = "";
-            if (expectedSink is not null && loaded && ran && (!kind.StartsWith("call", StringComparison.Ordinal) || called) && error.Length == 0 && stub.Sink is not null)
-                actualFrame = Encoding.UTF8.GetString(ResultFrames.Encode(stub.Sink));
+            if (expectedSink is not null && stub.Sink is not null)
+                {using var frame=new MemoryStream();if(caught is null)stub.Results!.Complete(0);else stub.Results!.Fail(0,loaded?"run":"load",caught);stub.Results!.WriteFrame(frame);actualFrame=Encoding.UTF8.GetString(frame.ToArray());}
             if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("LMCODE_TRACE")))
             {
                 foreach (string value in stub.Trace) Console.WriteLine($"TRACE\t{name}\t{value}");
