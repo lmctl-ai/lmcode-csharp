@@ -195,7 +195,7 @@ static class Runner
             }
             var exp = rawExp; var kind = exp[0]; var lines = exp.Skip(1).Select(Unescape).ToArray(); var schemaName = schemaByName.TryGetValue(name, out var selectedSchema) ? selectedSchema : "schema.json"; var schemaBytes = File.ReadAllBytes(Path.Combine(dir, schemaName));
             using var schemaDocument = JsonDocument.Parse(schemaBytes);
-            var standardCatalog = name.StartsWith("return-", StringComparison.Ordinal) || (schemaDocument.RootElement.TryGetProperty("functions", out var functions) &&
+            var standardCatalog = expectedSink is not null || (schemaDocument.RootElement.TryGetProperty("functions", out var functions) &&
                 new[] { "str_len", "math_abs", "str_list", "print", "file_read" }.Any(name => functions.TryGetProperty(name, out _)));
             var stub = new Stub(standardCatalog); stub.Bind(); var loaded = false; var ran = false; var called = false; var error = ""; var code = ""; Value callResult = Value.None; Program? program = null;
             Error? caught = null;
