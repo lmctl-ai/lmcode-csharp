@@ -8,6 +8,14 @@ static class Tests
         if (args is ["--vector-pins"]) { VectorPinTests.Run(); return 0; }
         if (args is ["--entry-tests"]) { EntryTests.Run(); return 0; }
         if (args is ["--string-catalog"]) { StringCatalogTests.Run(); return 0; }
+        if (args is ["--return-tests"]) {
+            try {ResultJsonTests.Run();ResultSinkTests.Run();return 0;}
+            catch(Exception error) {Console.Error.WriteLine("FAIL return tests: "+error.Message);return 1;}
+        }
+        if(args is ["--return-vector-tests"]) {
+            try {ReturnVectorTests.Run();return 0;}
+            catch(Exception error) {Console.Error.WriteLine("FAIL return vectors: "+error.Message);return 1;}
+        }
         var checks = new (string Name, Func<bool> Check)[]
         {
             ("VmString preserves raw bytes", RawBytes),
@@ -23,6 +31,7 @@ static class Tests
         foreach (var (name, check) in checks)
             if (!check()) return Fail(name);
         TemplateTests.Run();
+        int results=ResultJsonTests.Run()+ResultSinkTests.Run()+ReturnVectorTests.Run();
         if (!RuntimeTests.Run()) return Fail("runtime tests");
         int verified = VerifierTests.Run();
         int catalog = StringCatalogTests.Run();
@@ -35,7 +44,7 @@ static class Tests
         int ruleMethods = RuleMethodsPinTests.Run();
         int entries = EntryTests.Run();
         int pins = VectorPinTests.Run();
-        Console.WriteLine($"PASS unit tests ({checks.Length + 6 + verified + catalog + collections + math + standard + files + v2 + encoding + ruleMethods + entries + pins})"); return 0;
+        Console.WriteLine($"PASS unit tests ({checks.Length + 6 + results + verified + catalog + collections + math + standard + files + v2 + encoding + ruleMethods + entries + pins})"); return 0;
     }
 
     static bool RawBytes()

@@ -16,6 +16,7 @@
     <None Include="../../stdlib/collections.schema-fragment.json" Link="Fixtures/collections.schema-fragment.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="../../stdlib/testing.schema-fragment.json" Link="Fixtures/testing.schema-fragment.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="../../stdlib/file.schema-fragment.json" Link="Fixtures/file.schema-fragment.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../../conformance/return-vectors/**" Link="Fixtures/return-vectors/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="../../std/template-cases.json" Link="Fixtures/template-cases.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../std/std.lock" Link="Fixtures/std.lock" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="../../std/lmcode-std.schema.json" Link="Fixtures/lmcode-std.schema.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

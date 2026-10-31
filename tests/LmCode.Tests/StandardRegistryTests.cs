@@ -8,14 +8,14 @@ static class StandardRegistryTests
     public static int Run()
     {
         var standard = new Registry();
-        Require(standard.Signatures().Length == 182 && standard.HostSignatures().Length == 0, "default standard surface");
+        Require(standard.Signatures().Length == 206 && standard.HostSignatures().Length == 0, "default standard surface");
         Require(standard.Signatures().SequenceEqual(CanonicalSignatures()), "canonical std exact surface");
         standard.CheckSchemaSignatures(CanonicalSignatures());
         var optout = new Registry(includeStd: false);
         Require(optout.Signatures().Length == 0, "opt-out registry");
         StandardCatalog.RegisterStd(optout); StandardCatalog.RegisterStd(optout);
-        Require(optout.Signatures().Length == 182, "idempotent standard binder");
-        Require(optout.StdSignatures().Length == 182 && Std.Signatures.Count == 182, "installed standard signatures");
+        Require(optout.Signatures().Length == 206, "idempotent standard binder");
+        Require(optout.StdSignatures().Length == 206 && Std.Signatures.Count == 206, "installed standard signatures");
         var overrideRegistry = new Registry();
         try { overrideRegistry.Function("str_len", ["string"], "int", (_, _) => Value.Int(99)); throw new Exception("builtin override accepted as ordinary duplicate"); }
         catch (Error e) when (e.Code == "LOAD_UNBOUND") { }

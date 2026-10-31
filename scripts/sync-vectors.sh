@@ -6,9 +6,9 @@ commit=$(git -C "$source_root" rev-parse HEAD)
 scratch=$(mktemp -d)
 trap 'rm -rf "$scratch"' EXIT
 # Always read committed bytes: an in-progress upstream vector cannot enter a pin.
-git -C "$source_root" archive --format=tar "$commit" conformance/vectors conformance/stdlib-vectors > "$scratch/vectors.tar"
+git -C "$source_root" archive --format=tar "$commit" conformance/vectors conformance/stdlib-vectors conformance/return-vectors > "$scratch/vectors.tar"
 tar -xf "$scratch/vectors.tar" -C "$scratch"
-for suite in vectors stdlib-vectors; do
+for suite in vectors stdlib-vectors return-vectors; do
   destination="$repo_dir/conformance/$suite"
   rm -rf "$destination"
   mkdir -p "$destination"

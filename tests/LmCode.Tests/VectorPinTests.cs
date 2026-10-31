@@ -22,16 +22,16 @@ static class VectorPinTests
     public static void Write(string commit)
     {
         if(!System.Text.RegularExpressions.Regex.IsMatch(commit,@"\A[0-9a-f]{40}\z"))throw new Exception("expected immutable commit SHA");
-        foreach(string suite in new[]{"vectors","stdlib-vectors"})File.WriteAllText(Path.Combine(Root(),suite+".lock"),"repo=https://github.com/lmctl-ai/lmcode-cpp\ncommit="+commit+"\nsha256="+Digest(Path.Combine(Root(),"conformance",suite))+"\n");
+        foreach(string suite in new[]{"vectors","stdlib-vectors","return-vectors"})File.WriteAllText(Path.Combine(Root(),suite+".lock"),"repo=https://github.com/lmctl-ai/lmcode-cpp\ncommit="+commit+"\nsha256="+Digest(Path.Combine(Root(),"conformance",suite))+"\n");
     }
     public static int Run()
     {
-        foreach(string suite in new[]{"vectors","stdlib-vectors"})
+        foreach(string suite in new[]{"vectors","stdlib-vectors","return-vectors"})
         {
             string expected=File.ReadAllLines(Path.Combine(Root(),suite+".lock")).Single(s=>s.StartsWith("sha256=",StringComparison.Ordinal))[7..];
             if(Digest(Path.Combine(Root(),"conformance",suite))!=expected)throw new Exception("modified pinned "+suite);
             Console.WriteLine("PASS pinned "+suite);
         }
-        return 2;
+        return 3;
     }
 }
