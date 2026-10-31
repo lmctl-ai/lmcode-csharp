@@ -8,6 +8,10 @@ static class InvocationVectorTests
     static int Execute(InvocationResults results,string schemaPath,string configPath,Stream output) {
                 var registry=new Registry();var context=new Context();long counter=0;
                 registry.Function("next_counter",[],"int",(_,_)=>Value.Int(++counter));registry.Function("entry_fail",[],"void",(_,_)=>throw Error.Host("native entry failure"),Registry.Dry((_,_)=>throw Error.Host("preview failed")));
+                registry.Function("wp90_Json",[],"Json",(_,_)=>throw Error.Host("real dummy callback ran"));
+                registry.Function("wp90_consume",["Json"],"int",(_,_)=>throw Error.Host("real consumer ran"));
+                registry.Method("Json","wp90_consume",["Json"],"int",(_,_,_)=>throw Error.Host("real method ran"));
+                registry.Method("Json","wp90_preview",["Json"],"int",(_,_,_)=>throw Error.Host("real method ran"),Registry.Dry((Context _,ObjRef _,Value[] _)=>throw Error.Host("preview received dry null")));
                 byte[] schema=File.ReadAllBytes(schemaPath);var contract=ResultContract.FromSchema(Encoding.UTF8.GetString(schema));
                 using var config=JsonDocument.Parse(File.ReadAllBytes(configPath));
                 foreach(var position in config.RootElement.GetProperty("execution").EnumerateArray()){
@@ -28,6 +32,7 @@ static class InvocationVectorTests
         using var manifest=JsonDocument.Parse(File.ReadAllBytes(Path.Combine(folder,"manifest.json")));int count=0;
         foreach(var test in manifest.RootElement.GetProperty("cases").EnumerateArray()){
             string name=test.GetProperty("name").GetString()!;
+            string schemaFile=test.TryGetProperty("schema",out var ownSchema)?ownSchema.GetString()!:"schema.json";
             string temp=Path.Combine(Path.GetTempPath(),"lmcode-invocation-"+Guid.NewGuid());Directory.CreateDirectory(temp);
             try{
                 var names=test.GetProperty("programs").EnumerateArray().Select(n=>n.GetString()!).ToArray();
@@ -38,13 +43,13 @@ static class InvocationVectorTests
                 var parsed=files.Reverse().ToArray();InvocationResults results;
                 if(mode is null)results=InvocationResults.FromCommand(files,null);
                 else {string path=Path.Combine(temp,"invocation 水.json");File.WriteAllText(path,"{\"version\":1,\"mode\":"+ResultJson.Quote(mode)+",\"dry\":"+(dry?"true":"false")+",\"parts\":["+string.Join(',',files.Select((f,i)=>"{\"index\":"+i+",\"file\":"+ResultJson.Quote(f)+"}"))+"]}",new UTF8Encoding(false));results=InvocationResults.FromCommand(parsed,path);}
-                using var output=new MemoryStream();int status=Execute(results,Path.Combine(folder,"schema.json"),Path.Combine(folder,name+".json"),output);
+                using var output=new MemoryStream();int status=Execute(results,Path.Combine(folder,schemaFile),Path.Combine(folder,name+".json"),output);
                 Require(status==test.GetProperty("exit").GetInt32()&&output.ToArray().SequenceEqual(File.ReadAllBytes(Path.Combine(folder,name+".expect"))),"canonical invocation differs: "+name+"; actual="+Encoding.UTF8.GetString(output.ToArray()));
                 // A separate real process exercises inherited environment reading without mutating this process.
                 string executable=Environment.ProcessPath ?? throw new Exception("missing executable path");
                 var start=new System.Diagnostics.ProcessStartInfo(executable){RedirectStandardOutput=true,RedirectStandardError=true,UseShellExecute=false};
                 if(Path.GetFileNameWithoutExtension(executable).Equals("dotnet",StringComparison.OrdinalIgnoreCase))start.ArgumentList.Add(Environment.GetCommandLineArgs()[0]);
-                foreach(string arg in new[]{"--invocation-fixture",Path.Combine(folder,"schema.json"),Path.Combine(folder,name+".json")})start.ArgumentList.Add(arg);
+                foreach(string arg in new[]{"--invocation-fixture",Path.Combine(folder,schemaFile),Path.Combine(folder,name+".json")})start.ArgumentList.Add(arg);
                 foreach(string file in mode is null?files:parsed)start.ArgumentList.Add(file);
                 if(mode is null)start.Environment.Remove("LMCODE_INVOCATION_FILE");else start.Environment["LMCODE_INVOCATION_FILE"]=Path.Combine(temp,"invocation 水.json");
                 using var child=System.Diagnostics.Process.Start(start) ?? throw new Exception("child failed to start");
