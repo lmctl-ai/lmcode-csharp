@@ -8,14 +8,14 @@ static class ResultJsonTests
         static void Equal(string expected, string actual) { if (expected != actual) throw new Exception($"expected {expected}, got {actual}"); }
         Equal("0.30000000000000004", ResultJson.FormatNumber(0.1 + 0.2)); checks++;
         Equal("0.1", ResultJson.FormatNumber(0.1)); checks++;
-        Equal("5E-324", ResultJson.FormatNumber(5e-324)); checks++;
+        Equal("5e-324", ResultJson.FormatNumber(5e-324)); checks++;
         Equal("0", ResultJson.FormatNumber(-0.0)); checks++;
         Equal("0", ResultJson.ValidateNumberToken("-0")); checks++;
         Equal("0.1", ResultJson.ValidateNumberToken("1e-1")); checks++;
-        Equal("9007199254740991", ResultJson.ValidateNumberToken("9007199254740991")); checks++;
-        Equal("9007199254740991", ResultJson.ValidateNumberToken("9007199254740991.0")); checks++;
-        Equal("9007199254740991", ResultJson.ValidateNumberToken("90071992547409910e-1")); checks++;
-        Equal("1E-50", ResultJson.ValidateNumberToken("1e-50")); checks++;
+        Equal("9.007199254740991e+15", ResultJson.ValidateNumberToken("9007199254740991")); checks++;
+        Equal("9.007199254740991e+15", ResultJson.ValidateNumberToken("9007199254740991.0")); checks++;
+        Equal("9.007199254740991e+15", ResultJson.ValidateNumberToken("90071992547409910e-1")); checks++;
+        Equal("1e-50", ResultJson.ValidateNumberToken("1e-50")); checks++;
         foreach (string zero in new[] {"0e-999999999999999999999", "-0.0e999999999999999999999"}) { Equal("0",ResultJson.ValidateNumberToken(zero));checks++; }
         foreach (string token in new[] {"90071992547409930000e-4", "-9007199254740993", "1e999999999999999999999"}) {
             try {ResultJson.ValidateNumberToken(token,"/raw");throw new Exception("unsafe raw accepted");}

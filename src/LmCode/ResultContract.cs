@@ -59,16 +59,11 @@ public sealed record ResultContract
 
 internal static class InvocationJson
 {
-    internal static JsonDocument Parse(string raw,bool numbers=true) {
-        _=new UTF8Encoding(false,true).GetBytes(raw);
-        var doc=JsonDocument.Parse(raw,new JsonDocumentOptions{MaxDepth=int.MaxValue});
-        try {Check(doc.RootElement,numbers);return doc;}catch {doc.Dispose();throw;}
-    }
-    private static void Check(JsonElement n,bool numbers) {
-        if(n.ValueKind==JsonValueKind.Object){var keys=new HashSet<string>(StringComparer.Ordinal);foreach(var p in n.EnumerateObject()){_=ResultJson.Quote(p.Name);if(!keys.Add(p.Name))throw new Exception("duplicate JSON key");Check(p.Value,numbers);}}
-        else if(n.ValueKind==JsonValueKind.Array)foreach(var c in n.EnumerateArray())Check(c,numbers);
-        else if(n.ValueKind==JsonValueKind.String)_=ResultJson.Quote(n.GetString()!);
-        else if(numbers&&n.ValueKind==JsonValueKind.Number)_=ResultJson.ValidateNumberToken(n.GetRawText());
+    internal static JsonDocument Parse(string raw,bool numbers=true) => Parse(new UTF8Encoding(false,true).GetBytes(raw),numbers);
+    internal static JsonDocument Parse(byte[] raw,bool numbers=true) {
+        var node=Stdlib.JsonCatalog.ParseInvocation(raw);
+        if(numbers)ResultSink.ValidateNode(node);
+        return JsonDocument.Parse(raw,new JsonDocumentOptions{MaxDepth=int.MaxValue});
     }
     internal static bool Integer(JsonElement n,int value)=>n.ValueKind==JsonValueKind.Number&&n.GetDouble()==value;
     internal static void Keys(JsonElement n,params string[] allowed) {if(n.ValueKind!=JsonValueKind.Object)throw new Exception("object required");foreach(var p in n.EnumerateObject())if(!allowed.Contains(p.Name))throw new Exception("unknown key "+p.Name);}

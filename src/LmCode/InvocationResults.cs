@@ -17,16 +17,17 @@ public sealed class InvocationResults
         this.builder=builder;Registrations=Array.AsReadOnly(registrations.ToArray());slots=Enumerable.Range(0,count).Select(_=>new Slot()).ToArray();
     }
     private static Error Invalid(string text)=>new("CLI_USAGE","lmcode invocation: "+text);
-    public static InvocationResults FromMetadata(string raw,IReadOnlyList<string> parsedFiles) {
+    public static InvocationResults FromMetadata(string raw,IReadOnlyList<string> parsedFiles) => FromMetadata(new UTF8Encoding(false,true).GetBytes(raw),parsedFiles);
+    private static InvocationResults FromMetadata(byte[] raw,IReadOnlyList<string> parsedFiles) {
         try {
             using var doc=InvocationJson.Parse(raw);var root=doc.RootElement;InvocationJson.Keys(root,"version","mode","parts");
             if(!root.TryGetProperty("version",out var version)||!InvocationJson.Integer(version,1))throw new Exception("unsupported version");
-            string? mode=root.GetProperty("mode").GetString();if(mode is not ("single" or "builder"))throw new Exception("invalid mode");
-            var parts=root.GetProperty("parts");if(parts.ValueKind!=System.Text.Json.JsonValueKind.Array||parts.GetArrayLength()==0||(mode=="single"&&parts.GetArrayLength()!=1))throw new Exception("invalid parts");
+            string? mode=root.TryGetProperty("mode",out var modeNode)&&modeNode.ValueKind==System.Text.Json.JsonValueKind.String?modeNode.GetString():null;if(mode is not ("single" or "builder"))throw new Exception("invalid mode");
+            root.TryGetProperty("parts",out var parts);if(parts.ValueKind!=System.Text.Json.JsonValueKind.Array||parts.GetArrayLength()==0||(mode=="single"&&parts.GetArrayLength()!=1))throw new Exception("invalid parts");
             var files=new List<string>();
             foreach(var part in parts.EnumerateArray()) {
-                InvocationJson.Keys(part,"index","file");if(!InvocationJson.Integer(part.GetProperty("index"),files.Count))throw new Exception("noncontiguous index");
-                string file=part.GetProperty("file").GetString()??"";
+                InvocationJson.Keys(part,"index","file");if(!part.TryGetProperty("index",out var index)||!InvocationJson.Integer(index,files.Count))throw new Exception("noncontiguous index");
+                string file=part.TryGetProperty("file",out var fileNode)&&fileNode.ValueKind==System.Text.Json.JsonValueKind.String?fileNode.GetString()!:"";
                 if(file.Contains('\0')||!Path.IsPathFullyQualified(file))throw new Exception("file must be absolute");
                 if(files.Contains(file,StringComparer.Ordinal))throw new Exception("duplicate file");files.Add(file);
             }
@@ -41,8 +42,8 @@ public sealed class InvocationResults
     public static InvocationResults FromCommand(IReadOnlyList<string> parsedFiles,string? manifest) {
         if(manifest is not null) {
             try {_=ResultJson.Quote(manifest);if(manifest.Length==0||manifest.Contains('\0')||!Path.IsPathFullyQualified(manifest))throw new Exception("manifest path must be absolute");
-                return FromMetadata(new UTF8Encoding(false,true).GetString(System.IO.File.ReadAllBytes(manifest)),parsedFiles);
-            }catch(Error){throw;}catch(Exception e)when(e is not OutOfMemoryException){throw Invalid(e.Message);}
+                return FromMetadata(System.IO.File.ReadAllBytes(manifest),parsedFiles);
+            }catch(Error){throw;}catch(Exception e)when(e is IOException or UnauthorizedAccessException){throw Invalid("cannot read manifest");}catch(Exception e)when(e is not OutOfMemoryException){throw Invalid(e.Message);}
         }
         if(parsedFiles.Count==0)throw Invalid("empty parts");
         foreach(string file in parsedFiles){if(string.IsNullOrEmpty(file)||file.Contains('\0'))throw Invalid("invalid command file");try{_=ResultJson.Quote(file);}catch(Error){throw Invalid("file must be UTF-8");}}

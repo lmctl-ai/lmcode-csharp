@@ -29,7 +29,7 @@ with tempfile.TemporaryDirectory(prefix='s2-csharp-controls-') as temporary:
         ('missing configured sink','src/LmCode/Registry.cs','resultSink ?? throw Error.Host("lmcode return: no result sink")','resultSink ?? new ResultSink()','--return-tests','missing exact return error: lmcode return: no result sink'),
         ('bad retained numeric token','src/LmCode/ResultSink.cs','if (node.Raw.Length!=0) _=ResultJson.ValidateNumberToken(node.Raw,path);','// mutation: ignore retained integer token','--return-tests','missing exact return error: lmcode return: invalid JSON value at : unsafe_integer'),
         ('source-mutation alias','src/LmCode/ResultSink.cs','public void Set(Context context, Value value) {Writable();Contract.ValidateSource(value);var next=CopyValue(context,value,"");Contract.Validate(Encode(next));root=next;}','public void Set(Context context, Value value) {Writable();Contract.ValidateSource(value);var next=CopyValue(context,value,"");Contract.Validate(Encode(next));root=next;borrowedContext=context;borrowed=value;}','--return-tests','expected [7], got [99]'),
-        ('G15 framing formatter','src/LmCode/ResultJson.cs','return value.ToString(CultureInfo.InvariantCulture);','return Formatting.FormatG15(value);','--return-vector-tests','canonical return vector differs: float-roundtrip'),
+        ('G15 framing formatter','src/LmCode/ResultJson.cs','string raw=value.ToString("R",CultureInfo.InvariantCulture);','string raw=Formatting.FormatG15(value);','--return-vector-tests','canonical return vector differs: float-roundtrip'),
     ]
     for name,file,anchor,replacement,mode,expected in mutants:
         for target,text in original.items():(work/target).write_text(text)

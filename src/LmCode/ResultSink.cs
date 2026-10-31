@@ -127,6 +127,7 @@ public sealed class ResultSink
         foreach (char c in raw) { if (c is 'e' or 'E') break; if (c is >= '1' and <= '9') return true; }
         return false;
     }
+    internal static void ValidateNode(JsonCatalog.Node node) => _=CopyNode(node,"",new(ReferenceEqualityComparer.Instance));
     private static JsonCatalog.Node CopyNode(JsonCatalog.Node? node,string path,HashSet<JsonCatalog.Node> active)
     {
         if (node is null) throw Invalid(path,"handle");

@@ -7,7 +7,8 @@ static class InvocationTests
     static void Reject(Action a,string text=""){try{a();}catch(Error e){if(e.Message.Contains(text,StringComparison.Ordinal))return;throw;}throw new Exception("missing refusal: "+text);}
     static string Output(InvocationResults r,int expected=0){using var s=new MemoryStream();Require(r.WriteFrame(s)==expected,"exit status");return Encoding.UTF8.GetString(s.ToArray());}
     static string Frame(string json)=>"LMCODE_RETURN_BEGIN\n"+json+"\nLMCODE_RETURN_END\n";
-    sealed class FlushFailure:MemoryStream {public override void Flush()=>throw new IOException("deferred");}
+    sealed class FlushFailure:MemoryStream {public override void Flush(){if(Length>0)throw new IOException("deferred");}}
+    sealed class OrderedFlush:MemoryStream {public byte[] Flushed=[];public override void Flush(){Flushed=ToArray();}}
     static ResultContract Contract(string type,bool nullable=false)=>ResultContract.FromSchema("{\"dsl.schema\":2,\"result\":{\"type\":\""+type+"\""+(nullable?",\"nullable\":true":"")+"}}");
     public static int Run(){
         var r=new Registry();var c=new Context();var parts=InvocationResults.FromCommand(["a","b"],null);
@@ -29,6 +30,7 @@ static class InvocationTests
         var single=InvocationResults.FromCommand(["a"],null);single.Select(0,r).Set(c,Value.Float(.1+.2));single.Complete(0);
         Require(Output(single)==Frame("{\"ok\":true,\"result\":0.30000000000000004}"),"shortest envelope");
         using(var bad=new FlushFailure()){var one=InvocationResults.FromCommand(["a"],null);one.Select(0,r);one.Complete(0);Require(one.WriteFrame(bad)==4,"flush failure ignored");long length=bad.Length;Require(one.WriteFrame(bad)==4&&bad.Length==length,"retry after output failure");}
+        using(var buffered=new OrderedFlush()){var one=InvocationResults.FromCommand(["a"],null);one.Select(0,r);one.Complete(0);Require(one.WriteFrame(buffered)==0,"buffered success");Require(Encoding.UTF8.GetString(buffered.Flushed)==Frame("{\"ok\":true,\"result\":null}"),"frame must reach flush after end marker");}
         var typed=new ResultSink(Contract("IntMap"));typed.Put(c,VmString.FromString("ok"),Value.Int(1));Reject(()=>typed.PutNull(VmString.FromString("bad")),"/bad");Require(typed.Json()=="{\"ok\":1}","non-atomic contract");typed.Reset();Reject(()=>typed.Seal(),"expected IntMap; got null");typed.Put(c,VmString.FromString("x"),Value.Int(2));typed.Seal();
         var ints=new ResultSink(Contract("int"));Reject(()=>ints.Set(c,Value.Float(2)),"expected int; got float");ints.Set(c,Value.Int(2));ints.Seal();
         var nullable=new ResultSink(Contract("string",true));nullable.SetNull();nullable.Seal();
@@ -42,6 +44,9 @@ static class InvocationTests
         foreach(string bad in new[]{metadata.Replace("\"version\":1","\"version\":2"),metadata.Replace("\"version\":1","\"version\":1,\"version\":1"),metadata.Replace("\"index\":1","\"index\":0"),metadata.Replace("\"builder\"","\"single\""),"\uFEFF"+metadata,metadata.Replace("\"version\":1","\"version\":1,\"extra\":0"),metadata.Replace("\"version\":1","\"version\":1e-9999")})Reject(()=>InvocationResults.FromMetadata(bad,[g,f]));
         string path=Path.Combine(Path.GetTempPath(),Guid.NewGuid()+" 水.json");try{File.WriteAllText(path,metadata,new UTF8Encoding(false));Require(InvocationResults.FromCommand([g,f],path).Registrations[0].Index==1,"manifest file");}finally{File.Delete(path);}
         Reject(()=>InvocationResults.FromCommand(["a"],""));Reject(()=>InvocationResults.FromCommand(["a"],"relative"));Reject(()=>InvocationResults.FromCommand(["a"],Path.GetFullPath("bad")+"\ud800"));
+        string absent=Path.Combine(Path.GetTempPath(),"lmcode-absent-"+Guid.NewGuid()+".json");
+        try{_=InvocationResults.FromCommand(["a"],absent);throw new Exception("missing manifest accepted");}
+        catch(Error e){using var output=new MemoryStream();Require(ResultFrames.FailureFrame(output,"cli",e)==2,"missing manifest exit");Require(Encoding.UTF8.GetString(output.ToArray())==Frame("{\"ok\":false,\"phase\":\"cli\",\"code\":\"CLI_USAGE\",\"message\":\"lmcode invocation: cannot read manifest\"}"),"missing manifest byte drift");}
         Console.WriteLine("PASS invocation slots, sealing, contracts, metadata, first failure, flush and exact envelopes");return 40;
     }
 }

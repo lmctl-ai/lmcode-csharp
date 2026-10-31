@@ -53,6 +53,18 @@ static class InvocationVectorTests
                 Console.WriteLine("PASS canonical invocation "+name+" (embedded + child env)");count++;
             }finally{Directory.Delete(temp,true);}
         }
+        using var errors=JsonDocument.Parse(File.ReadAllBytes(Path.Combine(folder,"metadata-errors.json")));
+        foreach(var test in errors.RootElement.EnumerateArray()){
+            string path=Path.Combine(Path.GetTempPath(),"lmcode-bad-metadata-"+Guid.NewGuid()+".json");
+            try{
+                File.WriteAllBytes(path,Convert.FromHexString(test.GetProperty("raw_hex").GetString()!));
+                using var output=new MemoryStream();int status;
+                try{_=InvocationResults.FromCommand(["/unused"],path);throw new Exception("malformed metadata accepted");}
+                catch(Error e){status=ResultFrames.FailureFrame(output,"cli",e);}
+                Require(status==2&&Encoding.UTF8.GetString(output.ToArray())==test.GetProperty("frame").GetString(),"canonical metadata differs: "+test.GetProperty("name").GetString()+"; "+Encoding.UTF8.GetString(output.ToArray()));
+                count++;
+            }finally{File.Delete(path);}
+        }
         return count;
     }
 }
