@@ -44,6 +44,8 @@ static class InvocationTests
         Require(Output(dryFailure,3)==Frame("{\"ok\":false,\"phase\":\"run\",\"code\":\"RUN_HOST\",\"message\":\"preview failed\",\"dry\":true}"),"dry failure marker");
         Reject(()=>InvocationResults.FromMetadata("{\"version\":1,\"mode\":\"single\",\"parts\":[{\"index\":0,\"file\":"+ResultJson.Quote(f)+"}]}",[f]),"dry");
         Reject(()=>InvocationResults.FromMetadata("{\"version\":1,\"mode\":\"single\",\"dry\":0,\"parts\":[{\"index\":0,\"file\":"+ResultJson.Quote(f)+"}]}",[f]),"dry");
+        try{_=InvocationResults.FromMetadata("{\"version\":1,\"mode\":\"single\",\"dry\":true,\"extra\":0,\"parts\":[{\"index\":0,\"file\":"+ResultJson.Quote(f)+"}]}",[f]);throw new Exception("unknown dry metadata key accepted");}
+        catch(Error e){using var frame=new MemoryStream();ResultFrames.FailureFrame(frame,"cli",e);Require(Encoding.UTF8.GetString(frame.ToArray())==Frame("{\"ok\":false,\"phase\":\"cli\",\"code\":\"CLI_USAGE\",\"message\":\"lmcode invocation: unknown key extra\",\"dry\":true}"),"known dry mode marker on pre-collector failure");}
         var incomplete=InvocationResults.FromCommand(["a","b"],null);incomplete.Select(1,r,Contract("int"));Reject(()=>incomplete.Complete(1),"expected int; got null");Require(Output(incomplete,3).Contains("\"part\":1",StringComparison.Ordinal),"completion contract association");
         string metadata="{\"version\":1,\"mode\":\"builder\",\"dry\":false,\"parts\":[{\"index\":0,\"file\":"+ResultJson.Quote(f)+"},{\"index\":1,\"file\":"+ResultJson.Quote(g)+"}]}";
         var meta=InvocationResults.FromMetadata(metadata,[g,f]);Require(meta.Registrations.Select(x=>x.Index).SequenceEqual([1,0]),"canonical registration mapping");

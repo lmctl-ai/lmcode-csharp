@@ -22,11 +22,12 @@ public sealed class InvocationResults
     private static InvocationResults FromMetadata(byte[] raw,IReadOnlyList<string> parsedFiles) {
         bool dryEstablished=false,dryValue=false;
         try {
-            using var doc=InvocationJson.Parse(raw);var root=doc.RootElement;InvocationJson.Keys(root,"version","mode","dry","parts");
+            using var doc=InvocationJson.Parse(raw);var root=doc.RootElement;
             if(!root.TryGetProperty("version",out var version)||!InvocationJson.Integer(version,1))throw new Exception("unsupported version");
             string? mode=root.TryGetProperty("mode",out var modeNode)&&modeNode.ValueKind==System.Text.Json.JsonValueKind.String?modeNode.GetString():null;if(mode is not ("single" or "builder"))throw new Exception("invalid mode");
             if(!root.TryGetProperty("dry",out var dryNode)||dryNode.ValueKind is not (System.Text.Json.JsonValueKind.True or System.Text.Json.JsonValueKind.False))throw new Exception("dry must be boolean");bool dry=dryNode.GetBoolean();
             dryEstablished=true;dryValue=dry;
+            InvocationJson.Keys(root,"version","mode","dry","parts");
             root.TryGetProperty("parts",out var parts);if(parts.ValueKind!=System.Text.Json.JsonValueKind.Array||parts.GetArrayLength()==0||(mode=="single"&&parts.GetArrayLength()!=1))throw new Exception("invalid parts");
             var files=new List<string>();
             foreach(var part in parts.EnumerateArray()) {
