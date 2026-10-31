@@ -26,6 +26,7 @@ sealed class Stub
         TempDir = standard ? Path.Combine(Path.GetTempPath(), "lmcode-" + Guid.NewGuid().ToString("N")) : "";
         if (standard) Directory.CreateDirectory(TempDir);
         Registry = new Registry(standardCatalog);
+        if (standardCatalog) Registry.SetResultSink(new ResultSink());
         TraceRef = Context.Insert("Trace", Trace);
         RootRef = Context.Insert("Thing", new Thing(0));
         VarRef = Context.Insert("Var", new Thing(0));
@@ -185,8 +186,8 @@ static class Runner
         {
             var exp = File.ReadAllLines(Path.Combine(dir, name + ".expect")); var kind = exp[0]; var lines = exp.Skip(1).Select(Unescape).ToArray(); var schemaName = schemaByName.TryGetValue(name, out var selectedSchema) ? selectedSchema : "schema.json"; var schemaBytes = File.ReadAllBytes(Path.Combine(dir, schemaName));
             using var schemaDocument = JsonDocument.Parse(schemaBytes);
-            var standardCatalog = schemaDocument.RootElement.TryGetProperty("functions", out var functions) &&
-                new[] { "str_len", "math_abs", "str_list", "print", "file_read" }.Any(name => functions.TryGetProperty(name, out _));
+            var standardCatalog = name.StartsWith("return-", StringComparison.Ordinal) || (schemaDocument.RootElement.TryGetProperty("functions", out var functions) &&
+                new[] { "str_len", "math_abs", "str_list", "print", "file_read" }.Any(name => functions.TryGetProperty(name, out _)));
             var stub = new Stub(standardCatalog); stub.Bind(); var loaded = false; var ran = false; var called = false; var error = ""; var code = ""; Value callResult = Value.None; Program? program = null;
             Error? caught = null;
             try
