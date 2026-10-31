@@ -19,7 +19,7 @@ SDK commit and matching compiler version.
 | **Greeter Example Host** | **Same Bytecode, Four Runtimes** |
 | --- | --- |
 | <img src="docs/images/greeter-example.png" width="440" alt="Greeter Example Host"> | <img src="docs/images/same-bytecode-four-runtimes.png" width="440" alt="Same Bytecode, Four Runtimes"> |
-| Minimal embedding host compiling and executing DSL logic in .NET 8 / C#.<br>`dotnet run --project examples/Greeter -- --dsl hello.dslb` | Shared bytecode contract for C++, Rust, Go, and C#. This C# port verifies its pinned corpus; the image shows an earlier four-runtime snapshot. |
+| Minimal embedding host compiling and executing lmcode logic in .NET 8 / C#.<br>`dotnet run --project examples/Greeter -- --dsl hello.dslb` | Shared bytecode contract for C++, Rust, Go, and C#. This C# port verifies its pinned corpus; the image shows an earlier four-runtime snapshot. |
 
 ## Embed
 
@@ -205,7 +205,7 @@ vectors. The pinned compiler is verified with the explicit canonical 206-signatu
 coordinated compiler slice; this runtime does not claim that older npm compilers
 bundle the newly added return imports.
 
-## Rule entries (R49, DSLB v6)
+## Rule entries (R49, lmcode bytecode (DSLB v6))
 
 Program.Entries exposes immutable source-order Entry metadata: Name, Annotation,
 Iface (canonical interface text without parameter names), Params (type names), Returns.
@@ -217,7 +217,7 @@ Arity errors are RUN_HOST: call entry 'NAME' expects N argument(s); found M.
 
 Only v6 is accepted. Entry parameter counts/types/visibility, metadata indexes,
 code/loop/jump structure, source tables and HALT stack depth are checked at load.
-Core dsl-conformance/3 calls run the body once first as a runner convention; the API
+Core `dsl-conformance/3` calls run the body once first as a runner convention; the API
 does not require that order. The runner supports entries/call/call_error/call_error_at
 and thing ID results. External sample repos migrate separately with their SDK pins.
 
@@ -288,3 +288,7 @@ LMSCRIPT_BIN=/tmp/s2-csharp-lmctl/node_modules/.bin/lmscript ./test.sh
 It includes the pinned C++ return fixtures and six actual-source mutation controls;
 NativeAOT executes both new return suites. No manual Actions dispatch is needed.
 See [result ownership and framing](durable-memory/09-invocation-results.md).
+
+## Historical literal names
+
+The documentation calls the language lmcode. `--dsl`, `--dsl-schema` and `--dsl-signatures` are current host flag literals; `DSLB` is the bytecode magic and `DSLB v6` is the current format name; `.dslb` is the current bytecode filename extension; `dsl.schema` is the current schema JSON key. Other code-formatted API names, paths, manifest names and diagnostic text retain their current literal spellings.

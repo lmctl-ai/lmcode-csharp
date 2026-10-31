@@ -1,3 +1,4 @@
 repo=https://github.com/lmctl-ai/lmcode-cpp
 commit=aaa9088a542d43daf81aefb9b024fbb971825f3f
-sha256=deb24d31c8bb4b9dba72f45dc933d4dee2d223c605fa140053648d70dae3442a
+sha256=e78ab45deb059c4894dbf111318cd53041199c6b9f9f05168b4f985b9a6ef579
+documentation_overlay=lmcode terminology only; no fixture bytes changed

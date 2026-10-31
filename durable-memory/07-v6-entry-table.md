@@ -1,4 +1,4 @@
-# DSLB v6 entry table
+# lmcode bytecode (DSLB v6) entry table
 
 Only v6 is accepted. The entry table follows body source lines and shares constants, imports and context declarations. Each entry has independent local metadata, code, loop map, stack hint and line map. Parameter locals must match the canonical interface count/types and be visible. The existing verifier runs per region; stack verification is unconditional for entries and enforces void/value HALT depth. No opcode or registry change.
 
