@@ -5,9 +5,9 @@ static class CatalogV2Tests
 {
     public static int Run()
     {
-        JsonOwnershipAndBudget();
+        JsonOwnershipAndLargeArena();
         PrioritySequenceBoundary();
-        Console.WriteLine("PASS v2 JSON ownership, borrowed identity, shared quota and cleanup");
+        Console.WriteLine("PASS v2 JSON ownership, borrowed identity, large arena and cleanup");
         return 8;
     }
 
@@ -39,7 +39,7 @@ static class CatalogV2Tests
         }
         finally { registry.ExitRun(context); }
     }
-    private static void JsonOwnershipAndBudget()
+    private static void JsonOwnershipAndLargeArena()
     {
         var registry = new Registry(); var context = new Context();
         Value Call(string signature, params Value[] args) => registry.Resolve(signature)!.Function!(context, args);
