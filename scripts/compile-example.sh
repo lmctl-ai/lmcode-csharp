@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
+# Compiler-generated test fixture; no script-visible bytecode export.
 set -euo pipefail
-mkdir -p artifacts
-"${LMSCRIPT_BIN:-lmscript}" --no-preflight examples/RuleEntries/rules.lms artifacts/rule-entries.dslb
+node scripts/compile-fixture.mjs examples/RuleEntries/rules.lms artifacts/rule-entries.dslb
