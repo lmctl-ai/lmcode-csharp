@@ -206,6 +206,8 @@ public static class CollectionsCatalog
     internal static ObjRef Allocate<T>(Context context, string type, T value) where T : class
     {
         State state = States.GetOrCreateValue(context);
+        state.References.EnsureCapacity(checked(state.References.Count + 1));
+        state.Borrowed.EnsureCapacity(checked(state.Borrowed.Count + 1));
         ObjRef reference = context.InsertCollection(type, value); state.References.Add(reference); state.Borrowed[value] = reference; return reference;
     }
     // Immutable Json navigation borrows nodes without spending another root
@@ -214,6 +216,8 @@ public static class CollectionsCatalog
     {
         State state = States.GetOrCreateValue(context);
         if (state.Borrowed.TryGetValue(value, out ObjRef existing)) return existing;
+        state.References.EnsureCapacity(checked(state.References.Count + 1));
+        state.Borrowed.EnsureCapacity(checked(state.Borrowed.Count + 1));
         ObjRef reference = context.InsertCollection(type, value);
         state.References.Add(reference);
         state.Borrowed.Add(value, reference);

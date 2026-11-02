@@ -14,6 +14,9 @@ static class RuntimeTests
         SchemaMismatch();
         OrdinaryVmTypeError();
         LocatedHostError();
+        AllocationError();
+        AllocationTeardownDoesNotAllocate();
+        AllocationHeapChild();
         return true;
     }
     private static void Require(bool condition) { if (!condition) throw new Exception("runtime regression"); }
@@ -77,6 +80,52 @@ static class RuntimeTests
         try { p.Run(new Context(), new Registry()); }
         catch (Error e) when (e.Code == "RUN_ERROR" && e.Message == "int negation applied to bool") { return; }
         throw new Exception("ordinary VM type error lost its RUN_ERROR code");
+    }
+    private static void AllocationTeardownDoesNotAllocate()
+    {
+        // Warm the release path before measuring another context's teardown.
+        var warm = new Context(); var first = warm.InsertCollection("IntList", new object()); warm.ReleaseCollection(first);
+        var context = new Context();
+        for (int i = 0; i < 1000; i++) context.InsertCollection("IntList", new object());
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 1000; i++) context.ReleaseCollection(new ObjRef(i));
+        Require(GC.GetAllocatedBytesForCurrentThread() == before);
+    }
+    private static void AllocationHeapChild()
+    {
+        string executable = Environment.ProcessPath ?? throw new Exception("missing test executable");
+        var start = new System.Diagnostics.ProcessStartInfo(executable) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+        if (Path.GetFileNameWithoutExtension(executable).Equals("dotnet", StringComparison.OrdinalIgnoreCase)) start.ArgumentList.Add(Environment.GetCommandLineArgs()[0]);
+        start.ArgumentList.Add("--allocation-heap-probe");
+        start.Environment["DOTNET_GCHeapHardLimit"] = "0x4000000";
+        using var child = System.Diagnostics.Process.Start(start) ?? throw new Exception("allocation child failed to start");
+        var output = child.StandardOutput.ReadToEndAsync(); var errors = child.StandardError.ReadToEndAsync();
+        System.Threading.Tasks.Task.WhenAll(output, errors).GetAwaiter().GetResult(); child.WaitForExit();
+        if (child.ExitCode != 0 || output.Result.Trim() != "RUN_HOST allocation failed")
+            throw new Exception($"allocation child failed ({child.ExitCode}): {output.Result} {errors.Result}");
+    }
+    public static int AllocationHeapProbe()
+    {
+        var r = new Registry().Function("grow", [], "void", (context, _) => {
+            for (int i = 0; i < 5_000_000; i++) LmCode.Stdlib.CollectionsCatalog.CreateIntList(context, Array.Empty<long>());
+            return Value.None;
+        });
+        var p = Program.Load(Image([7, 0, 0, 0, 0x11], ["fn grow() -> void"u8.ToArray()], [0]), [], r);
+        try { p.Run(new Context(), r); }
+        catch (Error e) when (e.Code == "RUN_HOST" && e.Message.Contains("allocation", StringComparison.Ordinal)) { Console.WriteLine("RUN_HOST allocation failed"); return 0; }
+        return 1;
+    }
+    private static void AllocationError()
+    {
+        foreach (bool dry in new[] {false, true})
+        {
+            var r = new Registry(false).Function("fail", [], "void", (_, _) => throw new OutOfMemoryException(), Registry.Dry((_, _) => throw new OutOfMemoryException()));
+            var p = Program.Load(Image([7, 0, 0, 0, 0x11], ["fn fail() -> void"u8.ToArray()], [0], true), [], r);
+            var c = new Context(); c.SetDry(dry);
+            try { p.Run(c, r); }
+            catch (Error e) when (e.Code == "RUN_HOST" && e.Message.Contains("allocation", StringComparison.Ordinal)) { continue; }
+            throw new Exception("allocation failure did not become a located host error");
+        }
     }
     private static void LocatedHostError()
     {

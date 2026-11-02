@@ -4,6 +4,7 @@ static class Tests
 {
     static int Main(string[] args)
     {
+        if(args is ["--allocation-heap-probe"]) return RuntimeTests.AllocationHeapProbe();
         if(args.Length>=3 && args[0]=="--invocation-fixture")return InvocationVectorTests.Child(args[1..]);
         if (args is ["--write-vector-locks", var commit]) { VectorPinTests.Write(commit); return 0; }
         if (args is ["--vector-pins"]) { VectorPinTests.Run(); return 0; }

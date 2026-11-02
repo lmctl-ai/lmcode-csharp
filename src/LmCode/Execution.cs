@@ -129,6 +129,11 @@ public sealed partial class Program
                     default: throw new Error("RUN_ERROR", $"unknown opcode {(byte)op}");
                 }
             }
+            catch (OutOfMemoryException) {
+                var error = Error.Host("allocation failed");
+                var line = LineOf(faultPc); if (line is not null) error.Locate(line.Number, line.Column);
+                throw error;
+            }
             catch (Error e) { var line = LineOf(faultPc); if (line is not null) e.Locate(line.Number, line.Column); throw; }
         }
         }
