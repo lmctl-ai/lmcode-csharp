@@ -2,7 +2,7 @@
   "notes": {
     "bytes": "All strings are raw bytes; lengths and offsets are byte-based, NUL and invalid UTF-8 are preserved.",
     "errors": "Catalog failures use RUN_HOST; file failures use FUNCTION: PATH: OS reason.",
-    "lifetime": "Default registries own standard collection lifetimes; handles are valid only for the active run. All collection types share a 65536-object allocation budget; clearing a collection does not reclaim an allocation.",
+    "lifetime": "Default registries own standard collection lifetimes; handles are valid only for the active run. Collections and Json roots have no implicit object-count budget; platform representability and allocation errors remain.",
     "paths": "Relative file paths use the process cwd without sandbox or root checks. Unix preserves native path bytes; Windows requires strict UTF-8 and supports long drive/UNC paths. Every platform rejects embedded NUL. Symlinks are followed; missing/broken paths and nonregular objects return false from file_exists, while other metadata errors trap.",
     "registration": "Default registries install 206 built-ins; testing print/assertions remain explicit host registrations. Return-sink imports are host-bound and write only to an invocation-owned sink.",
     "json": "Json is immutable strict UTF-8 JSON: scalar Unicode, signed int64 or finite binary64, depth 256, duplicate decoded keys/BOM rejected. Compact output preserves number/string token spellings; navigation borrows nodes until run end.",
@@ -10,7 +10,7 @@
     "encoding": "Hex is lowercase on encode and accepts ASCII mixed-case digits on decode. Base64 is canonical padded RFC 4648 section 4, rejecting whitespace, URL-safe alphabet, invalid padding and nonzero pad bits. Strings are raw bytes.",
     "snapshots": "Map keys()/values() each allocate one independent list snapshot in insertion order; mutation never aliases map storage. Float payload bits are preserved.",
     "templates": "One-pass text rendering with nested JSON context, zero-based indexed lists, list loops and strict boolean conditions. Strings insert verbatim; other values use compact JSON. No recursive interpolation or format-specific escaping.",
-    "results": "The invocation-owned ResultSink is external to arenas and retains owned writes across body/entry calls. JSON values use strict UTF-8, safe mathematical integers (\u00b19007199254740991), finite binary64 and shortest-round-trip formatting; explicit successful host framing follows dispatch and application validation."
+    "results": "The invocation-owned ResultSink is external to arenas and retains owned writes across body/entry calls. JSON values use strict UTF-8, safe mathematical integers (±9007199254740991), finite binary64 and shortest-round-trip formatting; explicit successful host framing follows dispatch and application validation."
   },
   "schema": "std/lmcode-std.schema.json",
   "signatures": {
@@ -38,8 +38,7 @@
     "fn file_lines(string) -> StrList": {
       "area": "file",
       "errors": [
-        "FUNCTION: PATH: OS reason",
-        "StrList object limit exceeded (65536)"
+        "FUNCTION: PATH: OS reason"
       ],
       "params": [
         "string"
@@ -69,9 +68,7 @@
     },
     "fn float_list() -> FloatList": {
       "area": "collections",
-      "errors": [
-        "FloatList object limit exceeded (65536)"
-      ],
+      "errors": [],
       "params": [],
       "summary": "Construct an empty FloatList in the active collection arena."
     },
@@ -79,39 +76,29 @@
       "area": "collections",
       "params": [],
       "summary": "Create an insertion-ordered byte-key map.",
-      "errors": [
-        "FloatMap object limit exceeded (65536)"
-      ]
+      "errors": []
     },
     "fn float_pq() -> FloatPQ": {
       "area": "collections",
       "params": [],
       "summary": "Create an empty FloatPQ in the run arena.",
-      "errors": [
-        "FloatPQ object limit exceeded (65536)"
-      ]
+      "errors": []
     },
     "fn float_queue() -> FloatQueue": {
       "area": "collections",
       "params": [],
       "summary": "Create an empty FloatQueue in the run arena.",
-      "errors": [
-        "FloatQueue object limit exceeded (65536)"
-      ]
+      "errors": []
     },
     "fn float_stack() -> FloatStack": {
       "area": "collections",
       "params": [],
       "summary": "Create an empty FloatStack in the run arena.",
-      "errors": [
-        "FloatStack object limit exceeded (65536)"
-      ]
+      "errors": []
     },
     "fn int_list() -> IntList": {
       "area": "collections",
-      "errors": [
-        "IntList object limit exceeded (65536)"
-      ],
+      "errors": [],
       "params": [],
       "summary": "Construct an empty IntList in the active collection arena."
     },
@@ -119,33 +106,25 @@
       "area": "collections",
       "params": [],
       "summary": "Create an insertion-ordered byte-key map.",
-      "errors": [
-        "IntMap object limit exceeded (65536)"
-      ]
+      "errors": []
     },
     "fn int_pq() -> IntPQ": {
       "area": "collections",
       "params": [],
       "summary": "Create an empty IntPQ in the run arena.",
-      "errors": [
-        "IntPQ object limit exceeded (65536)"
-      ]
+      "errors": []
     },
     "fn int_queue() -> IntQueue": {
       "area": "collections",
       "params": [],
       "summary": "Create an empty IntQueue in the run arena.",
-      "errors": [
-        "IntQueue object limit exceeded (65536)"
-      ]
+      "errors": []
     },
     "fn int_stack() -> IntStack": {
       "area": "collections",
       "params": [],
       "summary": "Create an empty IntStack in the run arena.",
-      "errors": [
-        "IntStack object limit exceeded (65536)"
-      ]
+      "errors": []
     },
     "fn json_parse(string) -> Json": {
       "area": "json",
@@ -154,16 +133,17 @@
       ],
       "summary": "Parse strict UTF-8 JSON eagerly; int64 integers, finite binary64 decimals, depth <=256, duplicate decoded keys rejected.",
       "errors": [
-        "json_parse: REASON at byte N",
-        "Json object limit exceeded (65536)"
+        "json_parse: REASON at byte N"
       ]
     },
     "fn lmcode_return_null() -> void": {
       "area": "return",
       "params": [],
-      "summary": "Replace the invocation result with null.",
+      "summary": "Replace the selected program result with null.",
       "errors": [
-        "lmcode return: no result sink"
+        "lmcode return: no result sink",
+        "lmcode return: result sink is sealed",
+        "lmcode return: result type mismatch at PATH: expected T; got K"
       ]
     },
     "fn lmcode_return_put(string, bool) -> void": {
@@ -172,11 +152,13 @@
         "string",
         "bool"
       ],
-      "summary": "Store a bool at a JSON object path in the invocation result.",
+      "summary": "Store a bool at a top-level JSON object key in the selected program result.",
       "errors": [
         "lmcode return: no result sink",
         "lmcode return: field assignment requires object or null",
-        "lmcode return: invalid JSON value at PATH: REASON"
+        "lmcode return: invalid JSON value at PATH: REASON",
+        "lmcode return: result sink is sealed",
+        "lmcode return: result type mismatch at PATH: expected T; got K"
       ]
     },
     "fn lmcode_return_put(string, float) -> void": {
@@ -185,11 +167,13 @@
         "string",
         "float"
       ],
-      "summary": "Store a float at a JSON object path in the invocation result.",
+      "summary": "Store a float at a top-level JSON object key in the selected program result.",
       "errors": [
         "lmcode return: no result sink",
         "lmcode return: field assignment requires object or null",
-        "lmcode return: invalid JSON value at PATH: REASON"
+        "lmcode return: invalid JSON value at PATH: REASON",
+        "lmcode return: result sink is sealed",
+        "lmcode return: result type mismatch at PATH: expected T; got K"
       ]
     },
     "fn lmcode_return_put(string, FloatList) -> void": {
@@ -198,11 +182,13 @@
         "string",
         "FloatList"
       ],
-      "summary": "Store an owned float list at a JSON object path in the invocation result.",
+      "summary": "Store an owned float list at a top-level JSON object key in the selected program result.",
       "errors": [
         "lmcode return: no result sink",
         "lmcode return: field assignment requires object or null",
-        "lmcode return: invalid JSON value at PATH: REASON"
+        "lmcode return: invalid JSON value at PATH: REASON",
+        "lmcode return: result sink is sealed",
+        "lmcode return: result type mismatch at PATH: expected T; got K"
       ]
     },
     "fn lmcode_return_put(string, FloatMap) -> void": {
@@ -211,11 +197,13 @@
         "string",
         "FloatMap"
       ],
-      "summary": "Store an owned float map at a JSON object path in the invocation result.",
+      "summary": "Store an owned float map at a top-level JSON object key in the selected program result.",
       "errors": [
         "lmcode return: no result sink",
         "lmcode return: field assignment requires object or null",
-        "lmcode return: invalid JSON value at PATH: REASON"
+        "lmcode return: invalid JSON value at PATH: REASON",
+        "lmcode return: result sink is sealed",
+        "lmcode return: result type mismatch at PATH: expected T; got K"
       ]
     },
     "fn lmcode_return_put(string, int) -> void": {
@@ -224,11 +212,13 @@
         "string",
         "int"
       ],
-      "summary": "Store an int at a JSON object path in the invocation result.",
+      "summary": "Store an int at a top-level JSON object key in the selected program result.",
       "errors": [
         "lmcode return: no result sink",
         "lmcode return: field assignment requires object or null",
-        "lmcode return: invalid JSON value at PATH: REASON"
+        "lmcode return: invalid JSON value at PATH: REASON",
+        "lmcode return: result sink is sealed",
+        "lmcode return: result type mismatch at PATH: expected T; got K"
       ]
     },
     "fn lmcode_return_put(string, IntList) -> void": {
@@ -237,11 +227,13 @@
         "string",
         "IntList"
       ],
-      "summary": "Store an owned int list at a JSON object path in the invocation result.",
+      "summary": "Store an owned int list at a top-level JSON object key in the selected program result.",
       "errors": [
         "lmcode return: no result sink",
         "lmcode return: field assignment requires object or null",
-        "lmcode return: invalid JSON value at PATH: REASON"
+        "lmcode return: invalid JSON value at PATH: REASON",
+        "lmcode return: result sink is sealed",
+        "lmcode return: result type mismatch at PATH: expected T; got K"
       ]
     },
     "fn lmcode_return_put(string, IntMap) -> void": {
@@ -250,11 +242,13 @@
         "string",
         "IntMap"
       ],
-      "summary": "Store an owned int map at a JSON object path in the invocation result.",
+      "summary": "Store an owned int map at a top-level JSON object key in the selected program result.",
       "errors": [
         "lmcode return: no result sink",
         "lmcode return: field assignment requires object or null",
-        "lmcode return: invalid JSON value at PATH: REASON"
+        "lmcode return: invalid JSON value at PATH: REASON",
+        "lmcode return: result sink is sealed",
+        "lmcode return: result type mismatch at PATH: expected T; got K"
       ]
     },
     "fn lmcode_return_put(string, Json) -> void": {
@@ -263,11 +257,13 @@
         "string",
         "Json"
       ],
-      "summary": "Store an owned JSON value at a JSON object path in the invocation result.",
+      "summary": "Store an owned JSON value at a top-level JSON object key in the selected program result.",
       "errors": [
         "lmcode return: no result sink",
         "lmcode return: field assignment requires object or null",
-        "lmcode return: invalid JSON value at PATH: REASON"
+        "lmcode return: invalid JSON value at PATH: REASON",
+        "lmcode return: result sink is sealed",
+        "lmcode return: result type mismatch at PATH: expected T; got K"
       ]
     },
     "fn lmcode_return_put(string, StrList) -> void": {
@@ -276,11 +272,13 @@
         "string",
         "StrList"
       ],
-      "summary": "Store an owned string list at a JSON object path in the invocation result.",
+      "summary": "Store an owned string list at a top-level JSON object key in the selected program result.",
       "errors": [
         "lmcode return: no result sink",
         "lmcode return: field assignment requires object or null",
-        "lmcode return: invalid JSON value at PATH: REASON"
+        "lmcode return: invalid JSON value at PATH: REASON",
+        "lmcode return: result sink is sealed",
+        "lmcode return: result type mismatch at PATH: expected T; got K"
       ]
     },
     "fn lmcode_return_put(string, StrMap) -> void": {
@@ -289,11 +287,13 @@
         "string",
         "StrMap"
       ],
-      "summary": "Store an owned string map at a JSON object path in the invocation result.",
+      "summary": "Store an owned string map at a top-level JSON object key in the selected program result.",
       "errors": [
         "lmcode return: no result sink",
         "lmcode return: field assignment requires object or null",
-        "lmcode return: invalid JSON value at PATH: REASON"
+        "lmcode return: invalid JSON value at PATH: REASON",
+        "lmcode return: result sink is sealed",
+        "lmcode return: result type mismatch at PATH: expected T; got K"
       ]
     },
     "fn lmcode_return_put(string, string) -> void": {
@@ -302,11 +302,13 @@
         "string",
         "string"
       ],
-      "summary": "Store a string at a JSON object path in the invocation result.",
+      "summary": "Store a string at a top-level JSON object key in the selected program result.",
       "errors": [
         "lmcode return: no result sink",
         "lmcode return: field assignment requires object or null",
-        "lmcode return: invalid JSON value at PATH: REASON"
+        "lmcode return: invalid JSON value at PATH: REASON",
+        "lmcode return: result sink is sealed",
+        "lmcode return: result type mismatch at PATH: expected T; got K"
       ]
     },
     "fn lmcode_return_put_null(string) -> void": {
@@ -314,11 +316,13 @@
       "params": [
         "string"
       ],
-      "summary": "Store null at a JSON object path in the invocation result.",
+      "summary": "Store null at a JSON object path in the selected program result.",
       "errors": [
         "lmcode return: no result sink",
         "lmcode return: field assignment requires object or null",
-        "lmcode return: invalid JSON value at PATH: REASON"
+        "lmcode return: invalid JSON value at PATH: REASON",
+        "lmcode return: result sink is sealed",
+        "lmcode return: result type mismatch at PATH: expected T; got K"
       ]
     },
     "fn lmcode_return_set(bool) -> void": {
@@ -326,10 +330,12 @@
       "params": [
         "bool"
       ],
-      "summary": "Replace the invocation result with an owned bool.",
+      "summary": "Replace the selected program result with an owned bool.",
       "errors": [
         "lmcode return: no result sink",
-        "lmcode return: invalid JSON value at PATH: REASON"
+        "lmcode return: invalid JSON value at PATH: REASON",
+        "lmcode return: result sink is sealed",
+        "lmcode return: result type mismatch at PATH: expected T; got K"
       ]
     },
     "fn lmcode_return_set(float) -> void": {
@@ -337,10 +343,12 @@
       "params": [
         "float"
       ],
-      "summary": "Replace the invocation result with an owned float.",
+      "summary": "Replace the selected program result with an owned float.",
       "errors": [
         "lmcode return: no result sink",
-        "lmcode return: invalid JSON value at PATH: REASON"
+        "lmcode return: invalid JSON value at PATH: REASON",
+        "lmcode return: result sink is sealed",
+        "lmcode return: result type mismatch at PATH: expected T; got K"
       ]
     },
     "fn lmcode_return_set(FloatList) -> void": {
@@ -348,10 +356,12 @@
       "params": [
         "FloatList"
       ],
-      "summary": "Replace the invocation result with an owned float list.",
+      "summary": "Replace the selected program result with an owned float list.",
       "errors": [
         "lmcode return: no result sink",
-        "lmcode return: invalid JSON value at PATH: REASON"
+        "lmcode return: invalid JSON value at PATH: REASON",
+        "lmcode return: result sink is sealed",
+        "lmcode return: result type mismatch at PATH: expected T; got K"
       ]
     },
     "fn lmcode_return_set(FloatMap) -> void": {
@@ -359,10 +369,12 @@
       "params": [
         "FloatMap"
       ],
-      "summary": "Replace the invocation result with an owned float map.",
+      "summary": "Replace the selected program result with an owned float map.",
       "errors": [
         "lmcode return: no result sink",
-        "lmcode return: invalid JSON value at PATH: REASON"
+        "lmcode return: invalid JSON value at PATH: REASON",
+        "lmcode return: result sink is sealed",
+        "lmcode return: result type mismatch at PATH: expected T; got K"
       ]
     },
     "fn lmcode_return_set(int) -> void": {
@@ -370,10 +382,12 @@
       "params": [
         "int"
       ],
-      "summary": "Replace the invocation result with an owned int.",
+      "summary": "Replace the selected program result with an owned int.",
       "errors": [
         "lmcode return: no result sink",
-        "lmcode return: invalid JSON value at PATH: REASON"
+        "lmcode return: invalid JSON value at PATH: REASON",
+        "lmcode return: result sink is sealed",
+        "lmcode return: result type mismatch at PATH: expected T; got K"
       ]
     },
     "fn lmcode_return_set(IntList) -> void": {
@@ -381,10 +395,12 @@
       "params": [
         "IntList"
       ],
-      "summary": "Replace the invocation result with an owned int list.",
+      "summary": "Replace the selected program result with an owned int list.",
       "errors": [
         "lmcode return: no result sink",
-        "lmcode return: invalid JSON value at PATH: REASON"
+        "lmcode return: invalid JSON value at PATH: REASON",
+        "lmcode return: result sink is sealed",
+        "lmcode return: result type mismatch at PATH: expected T; got K"
       ]
     },
     "fn lmcode_return_set(IntMap) -> void": {
@@ -392,10 +408,12 @@
       "params": [
         "IntMap"
       ],
-      "summary": "Replace the invocation result with an owned int map.",
+      "summary": "Replace the selected program result with an owned int map.",
       "errors": [
         "lmcode return: no result sink",
-        "lmcode return: invalid JSON value at PATH: REASON"
+        "lmcode return: invalid JSON value at PATH: REASON",
+        "lmcode return: result sink is sealed",
+        "lmcode return: result type mismatch at PATH: expected T; got K"
       ]
     },
     "fn lmcode_return_set(Json) -> void": {
@@ -403,10 +421,12 @@
       "params": [
         "Json"
       ],
-      "summary": "Replace the invocation result with an owned JSON value.",
+      "summary": "Replace the selected program result with an owned JSON value.",
       "errors": [
         "lmcode return: no result sink",
-        "lmcode return: invalid JSON value at PATH: REASON"
+        "lmcode return: invalid JSON value at PATH: REASON",
+        "lmcode return: result sink is sealed",
+        "lmcode return: result type mismatch at PATH: expected T; got K"
       ]
     },
     "fn lmcode_return_set(StrList) -> void": {
@@ -414,10 +434,12 @@
       "params": [
         "StrList"
       ],
-      "summary": "Replace the invocation result with an owned string list.",
+      "summary": "Replace the selected program result with an owned string list.",
       "errors": [
         "lmcode return: no result sink",
-        "lmcode return: invalid JSON value at PATH: REASON"
+        "lmcode return: invalid JSON value at PATH: REASON",
+        "lmcode return: result sink is sealed",
+        "lmcode return: result type mismatch at PATH: expected T; got K"
       ]
     },
     "fn lmcode_return_set(StrMap) -> void": {
@@ -425,10 +447,12 @@
       "params": [
         "StrMap"
       ],
-      "summary": "Replace the invocation result with an owned string map.",
+      "summary": "Replace the selected program result with an owned string map.",
       "errors": [
         "lmcode return: no result sink",
-        "lmcode return: invalid JSON value at PATH: REASON"
+        "lmcode return: invalid JSON value at PATH: REASON",
+        "lmcode return: result sink is sealed",
+        "lmcode return: result type mismatch at PATH: expected T; got K"
       ]
     },
     "fn lmcode_return_set(string) -> void": {
@@ -436,10 +460,12 @@
       "params": [
         "string"
       ],
-      "summary": "Replace the invocation result with an owned string.",
+      "summary": "Replace the selected program result with an owned string.",
       "errors": [
         "lmcode return: no result sink",
-        "lmcode return: invalid JSON value at PATH: REASON"
+        "lmcode return: invalid JSON value at PATH: REASON",
+        "lmcode return: result sink is sealed",
+        "lmcode return: result type mismatch at PATH: expected T; got K"
       ]
     },
     "fn math_abs(float) -> float": {
@@ -673,9 +699,7 @@
     },
     "fn str_list() -> StrList": {
       "area": "collections",
-      "errors": [
-        "StrList object limit exceeded (65536)"
-      ],
+      "errors": [],
       "params": [],
       "summary": "Construct an empty StrList in the active collection arena."
     },
@@ -689,17 +713,13 @@
     },
     "fn str_map() -> StrMap": {
       "area": "collections",
-      "errors": [
-        "StrMap object limit exceeded (65536)"
-      ],
+      "errors": [],
       "params": [],
       "summary": "Construct an empty insertion-ordered StrMap in the active collection arena."
     },
     "fn str_match(string, string) -> bool": {
       "area": "string",
-      "errors": [
-        "str_match: pattern exceeds the 2^27 work limit"
-      ],
+      "errors": [],
       "params": [
         "string",
         "string"
@@ -710,46 +730,42 @@
       "area": "collections",
       "params": [],
       "summary": "Create an empty StrPQ in the run arena.",
-      "errors": [
-        "StrPQ object limit exceeded (65536)"
-      ]
+      "errors": []
     },
     "fn str_queue() -> StrQueue": {
       "area": "collections",
       "params": [],
       "summary": "Create an empty StrQueue in the run arena.",
-      "errors": [
-        "StrQueue object limit exceeded (65536)"
-      ]
+      "errors": []
     },
     "fn str_repeat(string, int) -> string": {
       "area": "string",
       "errors": [
-        "str_repeat: count must be nonnegative and result at most 67108864 bytes"
+        "str_repeat: count must be nonnegative",
+        "str_repeat: result size exceeds platform capacity"
       ],
       "params": [
         "string",
         "int"
       ],
-      "summary": "Repeat raw bytes; reject negative counts and results above 64 MiB."
+      "summary": "Repeat raw bytes; reject negative counts and platform-unrepresentable result sizes."
     },
     "fn str_replace(string, string, string) -> string": {
       "area": "string",
       "errors": [
-        "str_replace: result must be at most 67108864 bytes"
+        "str_replace: result size exceeds platform capacity"
       ],
       "params": [
         "string",
         "string",
         "string"
       ],
-      "summary": "Replace nonoverlapping byte matches left to right; an empty search leaves bytes unchanged. Every result, including unchanged copies, is limited to 64 MiB."
+      "summary": "Replace nonoverlapping byte matches left to right; an empty search leaves bytes unchanged. No implicit result-size budget."
     },
     "fn str_split(string, string) -> StrList": {
       "area": "collections",
       "errors": [
-        "str_split: separator must not be empty",
-        "StrList object limit exceeded (65536)"
+        "str_split: separator must not be empty"
       ],
       "params": [
         "string",
@@ -761,9 +777,7 @@
       "area": "collections",
       "params": [],
       "summary": "Create an empty StrStack in the run arena.",
-      "errors": [
-        "StrStack object limit exceeded (65536)"
-      ]
+      "errors": []
     },
     "fn str_starts_with(string, string) -> bool": {
       "area": "string",
@@ -920,9 +934,7 @@
       "area": "containers",
       "params": [],
       "summary": "Allocate an independent StrList snapshot of keys in insertion order; later map/list mutations do not alias. Preserve raw bytes and float payload bits.",
-      "errors": [
-        "StrList object limit exceeded (65536)"
-      ]
+      "errors": []
     },
     "method FloatMap.len() -> int": {
       "area": "collections",
@@ -951,9 +963,7 @@
       "area": "containers",
       "params": [],
       "summary": "Allocate an independent FloatList snapshot of values in insertion order; later map/list mutations do not alias. Preserve raw bytes and float payload bits.",
-      "errors": [
-        "FloatList object limit exceeded (65536)"
-      ]
+      "errors": []
     },
     "method FloatPQ.clear() -> FloatPQ": {
       "area": "collections",
@@ -1209,9 +1219,7 @@
       "area": "containers",
       "params": [],
       "summary": "Allocate an independent StrList snapshot of keys in insertion order; later map/list mutations do not alias. Preserve raw bytes and float payload bits.",
-      "errors": [
-        "StrList object limit exceeded (65536)"
-      ]
+      "errors": []
     },
     "method IntMap.len() -> int": {
       "area": "collections",
@@ -1240,9 +1248,7 @@
       "area": "containers",
       "params": [],
       "summary": "Allocate an independent IntList snapshot of values in insertion order; later map/list mutations do not alias. Preserve raw bytes and float payload bits.",
-      "errors": [
-        "IntList object limit exceeded (65536)"
-      ]
+      "errors": []
     },
     "method IntPQ.clear() -> IntPQ": {
       "area": "collections",
@@ -1463,8 +1469,7 @@
       "params": [],
       "summary": "Snapshot keys in insertion order.",
       "errors": [
-        "Json.keys: expected object",
-        "StrList object limit exceeded (65536)"
+        "Json.keys: expected object"
       ]
     },
     "method Json.kind() -> string": {
@@ -1599,9 +1604,7 @@
       "area": "collections",
       "params": [],
       "summary": "Allocate an independent StrList snapshot of keys in insertion order; later map/list mutations do not alias. Preserve raw bytes and float payload bits.",
-      "errors": [
-        "StrList object limit exceeded (65536)"
-      ]
+      "errors": []
     },
     "method StrMap.len() -> int": {
       "area": "collections",
@@ -1632,9 +1635,7 @@
       "area": "collections",
       "params": [],
       "summary": "Allocate an independent StrList snapshot of values in insertion order; later map/list mutations do not alias. Preserve raw bytes and float payload bits.",
-      "errors": [
-        "StrList object limit exceeded (65536)"
-      ]
+      "errors": []
     },
     "method StrPQ.clear() -> StrPQ": {
       "area": "collections",
