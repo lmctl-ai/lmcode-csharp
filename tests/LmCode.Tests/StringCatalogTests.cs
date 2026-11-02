@@ -103,6 +103,11 @@ static class StringCatalogTests
             VmString result = StringCatalog.StrReplace(S("x"), S("x"), S(new string('y', size)));
             Require(result.Length == size && result.Span[0] == (byte)'y' && result.Span[^1] == (byte)'y', "replace result differs");
         });
+        Check("str_replace empty-search no-op above former 64 MiB input cap", () =>
+        {
+            var input = new VmString(new byte[64 * 1024 * 1024 + 1]);
+            Require(ReferenceEquals(StringCatalog.StrReplace(input, S(""), S("y")), input), "empty-search replacement should return its input");
+        });
         Check("str_match above former 2^27 work cap", () =>
         {
             string input = new string('[', 16_384);
