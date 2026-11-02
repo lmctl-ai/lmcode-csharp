@@ -46,7 +46,7 @@ static class CatalogV2Tests
         Value Method(string signature, Value self, params Value[] args) => registry.Resolve(signature)!.Method!(context, self.AsObj(), args);
         Value Parse(string json) => Call("fn json_parse(string) -> Json", Value.Str(VmString.FromString(json)));
         registry.EnterRun(context);
-        ObjRef root, child, keys;
+        ObjRef root, child, keys, extraRoot, extraKeys;
         try
         {
             var json = Parse("{\"a\":[1]}"); root = json.AsObj();
@@ -64,14 +64,14 @@ static class CatalogV2Tests
             _ = CollectionsCatalog.CreateStrList(context, [new VmString(new byte[] { 0, 255 })]);
             _ = CollectionsCatalog.CreateStrMap(context, [(key.AsStr(), key.AsStr())]);
             // One root, one keys list and four adapter copies count; the borrowed child and failed
-            // parses do not. All catalog families spend this same budget.
+            // parses do not. All catalog families share the arena without a fixed quota.
             for (int i = 0; i < 65530; i++) Call("fn int_queue() -> IntQueue");
-            Trap(() => Parse("null"), "Json object limit exceeded (65536)");
-            Trap(() => Method("method Json.keys() -> StrList", json), "StrList object limit exceeded (65536)");
-            Require(child == Method("method Json.get(string) -> Json", json, key).AsObj(), "navigation works when root quota is full");
+            extraRoot = Parse("null").AsObj();
+            extraKeys = Method("method Json.keys() -> StrList", json).AsObj();
+            Require(child == Method("method Json.get(string) -> Json", json, key).AsObj(), "navigation works beyond the former object quota");
         }
         finally { registry.ExitRun(context); }
-        foreach (ObjRef reference in new[] { root, child, keys })
+        foreach (ObjRef reference in new[] { root, child, keys, extraRoot, extraKeys })
         {
             try { _ = context.Get<object>(reference); throw new Exception("std object survived run end"); }
             catch (Error) { }

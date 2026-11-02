@@ -15,6 +15,7 @@ static class StringCatalogTests
     {
         checks = 0;
         CatalogEdges();
+        RemovedCaps();
         foreach (var (value, expected) in new (VmString, long)[] {
             (VmString.FromString("a\0b"), 3), (VmString.FromString("é"), 2),
             (VmString.FromString("日本"), 6), (VmString.FromString(""), 0), (new VmString([0xff, 0xfe]), 2) })
@@ -68,14 +69,6 @@ static class StringCatalogTests
         Bytes(StringCatalog.StrRepeat(new VmString([0xff, 0]), 2), [0xff, 0, 0xff, 0]);
         Bytes(StringCatalog.StrRepeat(S(""), long.MaxValue), []);
         Bytes(StringCatalog.StrRepeat(raw, 0), []);
-        const string repeatError = "str_repeat: count must be nonnegative and result at most 67108864 bytes";
-        HostError(() => StringCatalog.StrRepeat(S(""), -1), repeatError);
-        HostError(() => StringCatalog.StrRepeat(S("x"), 67108865), repeatError);
-        HostError(() => StringCatalog.StrRepeat(raw, long.MaxValue), repeatError);
-        var large = new VmString(new byte[67108865]);
-        const string replaceError = "str_replace: result must be at most 67108864 bytes";
-        HostError(() => StringCatalog.StrReplace(large, S(""), S("")), replaceError);
-        HostError(() => StringCatalog.StrReplace(large, S("x"), S("")), replaceError);
         foreach (var (token, value) in new (string, long)[] { ("+12",12), ("-9223372036854775808",long.MinValue), ("9223372036854775807",long.MaxValue), ("-0",0), ("0001",1) })
             Require(StringCatalog.StrIsInt(S(token)) && StringCatalog.StrToInt(S(token)) == value, "integer parsing " + token);
         foreach (string token in new[] { "", "+", "-", "+-1", "++1", "--1", "-+1", " 1", "1 ", "0x10", "1,5", "1\0", "9223372036854775808", "-9223372036854775809" })
@@ -92,7 +85,34 @@ static class StringCatalogTests
             ("*", "\\*", true), ("\\", "\\", true), ("-", "[\\-]", true), ("abc", "a*d", false) })
             Require(StringCatalog.StrMatch(S(text), S(pattern)) == expected, "glob " + pattern);
         Require(StringCatalog.StrMatch(new VmString([0xff, 0]), S("??")), "glob raw bytes");
-        HostError(() => StringCatalog.StrMatch(S(new string('a', 32768)), S("*" + new string('a', 16384) + "b")), "str_match: pattern exceeds the 2^27 work limit");
+    }
+
+    private static void RemovedCaps()
+    {
+        var failures = new List<string>();
+        void Check(string name, Action test) { try { test(); } catch (Exception e) { failures.Add(name + ": " + e.Message); } }
+        Check("str_repeat above former 64 MiB cap", () =>
+        {
+            const int size = 64 * 1024 * 1024 + 1;
+            VmString result = StringCatalog.StrRepeat(S("x"), size);
+            Require(result.Length == size && result.Span[0] == (byte)'x' && result.Span[^1] == (byte)'x', "repeat result differs");
+        });
+        Check("str_replace above former 64 MiB cap", () =>
+        {
+            const int size = 64 * 1024 * 1024 + 1;
+            VmString result = StringCatalog.StrReplace(S("x"), S("x"), S(new string('y', size)));
+            Require(result.Length == size && result.Span[0] == (byte)'y' && result.Span[^1] == (byte)'y', "replace result differs");
+        });
+        Check("str_match above former 2^27 work cap", () =>
+        {
+            string input = new string('[', 16_384);
+            Require(StringCatalog.StrMatch(S(input), S(input)), "unterminated class input should match literally");
+        });
+        Check("str_repeat retains the platform array-size guard", () =>
+            HostError(() => StringCatalog.StrRepeat(S("x"), long.MaxValue), "str_repeat: result exceeds platform byte-array limit"));
+        Check("str_repeat still rejects negative counts", () =>
+            HostError(() => StringCatalog.StrRepeat(S("x"), -1), "str_repeat: count must be nonnegative"));
+        if (failures.Count != 0) throw new Exception(string.Join("; ", failures));
     }
 
     private static string[] SchemaSignatures(string path)

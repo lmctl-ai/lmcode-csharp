@@ -9,6 +9,7 @@ static class Tests
         if (args is ["--vector-pins"]) { VectorPinTests.Run(); return 0; }
         if (args is ["--entry-tests"]) { EntryTests.Run(); return 0; }
         if (args is ["--string-catalog"]) { StringCatalogTests.Run(); return 0; }
+        if (args is ["--catalog-v2"]) { CatalogV2Tests.Run(); return 0; }
         if(args is ["--invocation-tests"]) {try{InvocationTests.Run();ResultContractTests.Run();InvocationVectorTests.Run();return 0;}catch(Exception e){Console.Error.WriteLine("FAIL invocation tests: "+e.Message);return 1;}}
         if(args is ["--dry-tests"]) {try{DryRuntimeTests.RunAll();return 0;}catch(Exception e){Console.Error.WriteLine("FAIL dry tests: "+e);return 1;}}
         if (args is ["--return-tests"]) {
