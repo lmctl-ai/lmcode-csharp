@@ -26,11 +26,20 @@ with fixtures in `tests/LmCode.Tests/Fixtures/rule-methods/`:
 - Loading the same bytecode against `schema-no-interfaces.json` must fail
   with `LOAD_SCHEMA_MISMATCH` (interfaces are part of the hash).
 
-Regenerate fixtures with an R47/R48 compiler, e.g.
-`LMSCRIPT_BIN=<lmscript> $LMSCRIPT_BIN --no-preflight annotated.lms annotated.dslb`
-from the fixture directory. `plain.lms` keeps a blank line where
-`annotated.lms` has the annotation so source-map line numbers align; without
-it the files differ only in line-table entries.
+The source files are compile-only fixtures; they do not expose bytecode writing
+as a script function. Regenerate/check the pinned binaries through the compiler
+library harness (built from mono main), then compare with the checked-in pins:
+
+```sh
+LMCODE_COMPILER_MODULE=/absolute/mono/lmscript/dist/dsl.js node scripts/compile-rule-method-fixture.mjs annotated /tmp/annotated.dslb
+cmp /tmp/annotated.dslb tests/LmCode.Tests/Fixtures/rule-methods/annotated.dslb
+LMCODE_COMPILER_MODULE=/absolute/mono/lmscript/dist/dsl.js node scripts/compile-rule-method-fixture.mjs plain /tmp/plain.dslb
+cmp /tmp/plain.dslb tests/LmCode.Tests/Fixtures/rule-methods/plain.dslb
+```
+
+`plain.lms` keeps a blank line where `annotated.lms` has the annotation so
+source-map line numbers align; without it the files differ only in line-table
+entries.
 
 ## R49 supersession (2026-10-28)
 

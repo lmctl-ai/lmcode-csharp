@@ -5,4 +5,3 @@ fn adjust(amount: int) -> void implements Adjuster {
 }
 adjust(41);
 end _lmcode_
-savedsl(program, ARGV[0]);

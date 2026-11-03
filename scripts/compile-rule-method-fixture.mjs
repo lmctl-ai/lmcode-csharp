@@ -1,0 +1,22 @@
+// Low-level compiler-library tool for the checked-in rule-method bytecode pins.
+import fs from 'node:fs';
+import path from 'node:path';
+import {pathToFileURL, fileURLToPath} from 'node:url';
+const [name,output]=process.argv.slice(2);
+if(!['annotated','plain'].includes(name)||!output)throw Error('usage: compile-rule-method-fixture.mjs annotated|plain OUTPUT');
+if(!process.env.LMCODE_COMPILER_MODULE)throw Error('set LMCODE_COMPILER_MODULE to mono lmscript/dist/dsl.js');
+const root=fileURLToPath(new URL('../',import.meta.url));
+const input=path.join(root,'tests/LmCode.Tests/Fixtures/rule-methods',name+'.lms');
+const source=fs.readFileSync(input,'utf8');
+const header=/^program = _lmcode_ schema="schema\.json";\r?\n/m.exec(source);
+if(!header)throw Error('rule-method fixture header changed');
+const start=header.index+header[0].length,close=source.indexOf('\nend _lmcode_',start);
+if(close<0)throw Error('rule-method fixture block is not closed');
+const body=source.slice(start,close).replace(/\r\n/g,'\n');
+const headerLine=source.slice(0,header.index).split(/\r?\n/).length;
+const {parseDslSchema,compileDsl}=await import(pathToFileURL(process.env.LMCODE_COMPILER_MODULE).href);
+const schema=path.join(path.dirname(input),'schema.json');
+const mapSourceLine=(lineIndex,column)=>({line:headerLine+1+lineIndex,column});
+const compiled=compileDsl(body.split('\n'),parseDslSchema(fs.readFileSync(schema),schema),mapSourceLine);
+fs.mkdirSync(path.dirname(output),{recursive:true});
+fs.writeFileSync(output,compiled.bytes);

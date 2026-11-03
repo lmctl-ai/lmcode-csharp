@@ -8,14 +8,14 @@ on:
       compiler_version:
         description: "Published @lmctl-ai/lmctl version"
         required: false
-        default: "0.2.456"
+        default: "0.2.457"
 permissions:
   contents: read
 concurrency:
   group: tests-${{ github.ref }}
   cancel-in-progress: true
 env:
-  LMCODE_COMPILER_VERSION: ${{ inputs.compiler_version || vars.LMCODE_COMPILER_VERSION || '0.2.456' }}
+  LMCODE_COMPILER_VERSION: ${{ inputs.compiler_version || vars.LMCODE_COMPILER_VERSION || '0.2.457' }}
 jobs:
   build:
     strategy:
@@ -50,4 +50,10 @@ jobs:
         env:
           RUN_NATIVE: '1'
           RUNTIME_ID: ${{ matrix.rid }}
-        run: lmscript test.lms
+        run: |
+          "$LMSCRIPT_BIN" --check examples/RuleEntries/rules.lms
+          "$LMSCRIPT_BIN" --check examples/Greeter/hello.lms
+          "$LMSCRIPT_BIN" --check tests/LmCode.Tests/Fixtures/rule-methods/annotated.lms
+          "$LMSCRIPT_BIN" --check tests/LmCode.Tests/Fixtures/rule-methods/plain.lms
+          "$LMSCRIPT_BIN" --check tests/LmCode.Tests/Fixtures/string.lms
+          lmscript test.lms

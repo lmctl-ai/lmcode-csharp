@@ -93,11 +93,11 @@ xUnit or other test framework is used. The conformance command runs every checke
 vector and exits nonzero on failure. `scripts/sync-vectors.sh` copies vectors from
 `../lmcode-cpp` and records its source commit; it never regenerates them.
 
-To rebuild the example bytecode with a compatible `lmscript` compiler:
+To rebuild the example bytecode with the low-level compiler-library fixture tool:
 
 ```sh
-cd examples/Greeter
-lmscript hello.lm
+LMCODE_COMPILER_MODULE=/path/to/mono/lmscript/dist/dsl.js node scripts/compile-fixture.mjs examples/Greeter/hello.lms /tmp/hello.dslb
+cmp /tmp/hello.dslb examples/Greeter/hello.dslb
 ```
 
 CI builds, tests, runs all vectors, publishes NativeAOT, and executes the native
@@ -141,7 +141,8 @@ is on PATH; set `LMSCRIPT_BIN` to select a compiler executable. An absent PATH
 compiler is explicitly skipped; a configured or installed compiler that fails is
 an error. CI installs the compiler and also runs the catalog tests under NativeAOT.
 For just the catalog checks, run `dotnet run --project tests/LmCode.Tests -- --string-catalog`.
-Regenerate the fixture from `tests/LmCode.Tests/Fixtures` with `lmscript string.dsl`.
+Regenerate the fixture from `tests/LmCode.Tests/Fixtures` with the compiler-library fixture tool:
+`LMCODE_COMPILER_MODULE=/path/to/mono/lmscript/dist/dsl.js node scripts/compile-fixture.mjs tests/LmCode.Tests/Fixtures/string.lms /tmp/string.dslb`.
 
 ## Loader guarantees and errors
 

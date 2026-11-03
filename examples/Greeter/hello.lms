@@ -1,4 +1,3 @@
 program = _lmcode_ schema="schema.json";
     greet("world");
 end _lmcode_
-savedsl(program, "hello.dslb");

@@ -8,7 +8,7 @@ on:
       compiler_version:
         description: "Published @lmctl-ai/lmctl version"
         required: false
-        default: "0.2.456"
+        default: "0.2.457"
 permissions:
   contents: read
 concurrency:
@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 env:
   SAMPLE_VERSION: 6.0.${{ github.run_number }}
-  LMCODE_COMPILER_VERSION: ${{ inputs.compiler_version || vars.LMCODE_COMPILER_VERSION || '0.2.456' }}
+  LMCODE_COMPILER_VERSION: ${{ inputs.compiler_version || vars.LMCODE_COMPILER_VERSION || '0.2.457' }}
 jobs:
   build:
     strategy:
@@ -61,6 +61,11 @@ jobs:
           RUN_NATIVE: '1'
           RUNTIME_ID: ${{ matrix.rid }}
         run: |
+          "$LMSCRIPT_BIN" --check examples/RuleEntries/rules.lms
+          "$LMSCRIPT_BIN" --check examples/Greeter/hello.lms
+          "$LMSCRIPT_BIN" --check tests/LmCode.Tests/Fixtures/rule-methods/annotated.lms
+          "$LMSCRIPT_BIN" --check tests/LmCode.Tests/Fixtures/rule-methods/plain.lms
+          "$LMSCRIPT_BIN" --check tests/LmCode.Tests/Fixtures/string.lms
           lmscript test.lms
           mkdir -p dist
           for binary in Greeter LmCode.Conformance RuleEntries; do
