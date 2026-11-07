@@ -8,8 +8,8 @@
     <PublishAot>true</PublishAot>
     <StripSymbols>true</StripSymbols>
     <IlcTreatWarningsAsErrors>true</IlcTreatWarningsAsErrors>
-    <!-- NU1903 is an advisory on the build-time ILCompiler package patch the runner's SDK selects; keep it a visible warning, not a build break. -->
-    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1903</WarningsNotAsErrors>
+    <!-- The runner's SDK selects a build-time ILCompiler patch with a high-severity NU1903 advisory; critical advisories still fail restore. -->
+    <NuGetAuditLevel>critical</NuGetAuditLevel>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="../../src/LmCode/LmCode.csproj" /></ItemGroup>
 </Project>
