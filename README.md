@@ -21,6 +21,10 @@ SDK commit and matching compiler version.
 | <img src="docs/images/greeter-example.png" width="440" alt="Greeter Example Host"> | <img src="docs/images/same-bytecode-four-runtimes.png" width="440" alt="Same Bytecode, Four Runtimes"> |
 | Historical pre-rename screenshot; current invocation:<br>`dotnet run --project examples/Greeter -- --lmcode hello.dslb` | Shared bytecode contract for C++, Rust, Go, and C#. This C# port verifies its pinned corpus; the image shows an earlier four-runtime snapshot. |
 
+## Optional REST server
+
+The opt-in `rest` std module serves HTTP/1.1 over stdin/stdout (no sockets); see [docs/rest.md](docs/rest.md).
+
 ## Embed
 
 Reference `src/LmCode/LmCode.csproj` from your host (`dotnet add reference PATH`), or

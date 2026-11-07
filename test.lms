@@ -5,9 +5,11 @@ fn step(command) {
   assert(result.code == 0, "failed: " + json_stringify(command));
 }
 step(["bash", "scripts/sync-std.sh", "--verify"]);
+step(["bash", "scripts/sync-rest.sh", "--verify"]);
 step(["dotnet", "build", "-c", "Release", "-warnaserror"]);
 set_env("LMCODE_COMPILER_EXPLICIT_STD", "1");
 step(["dotnet", "test", "-c", "Release", "--no-build"]);
+step(["dotnet", "run", "-c", "Release", "--no-build", "--project", "tests/LmCode.Tests", "--", "--rest-tests"]);
 step(["python3", "scripts/check-return-controls.py"]);
 step(["python3", "scripts/check-invocation-controls.py"]);
 step(["dotnet", "run", "-c", "Release", "--project", "conformance/LmCode.Conformance", "--", "conformance/vectors"]);
@@ -17,7 +19,7 @@ step(["dotnet", "run", "-c", "Release", "--project", "examples/RuleEntries", "--
 if (env("RUN_NATIVE") == "1") {
   rid = env("RUNTIME_ID"); assert(rid != "", "RUNTIME_ID is required");
   ext = ""; if (env("RUNNER_OS") == "Windows") { ext = ".exe"; }
-  projects = [{project:"examples/Greeter", name:"Greeter"}, {project:"conformance/LmCode.Conformance", name:"LmCode.Conformance"}, {project:"examples/RuleEntries", name:"RuleEntries"}, {project:"tests/LmCode.Tests", name:"LmCode.Tests"}];
+  projects = [{project:"examples/Greeter", name:"Greeter"}, {project:"conformance/LmCode.Conformance", name:"LmCode.Conformance"}, {project:"examples/RuleEntries", name:"RuleEntries"}, {project:"tests/LmCode.Tests", name:"LmCode.Tests"}, {project:"examples/RestServe", name:"RestServe"}];
   for (p in projects) {
     step(["dotnet", "publish", p.project, "-c", "Release", "-r", rid, "--self-contained", "true", "-p:PublishAot=true", "-p:IlcTreatWarningsAsErrors=true", "-p:StripSymbols=true", "-o", "artifacts/" + p.name]);
   }
@@ -28,6 +30,7 @@ if (env("RUN_NATIVE") == "1") {
   step([path_join(Directory, "artifacts/LmCode.Tests/LmCode.Tests" + ext), "--return-tests"]);
   step([path_join(Directory, "artifacts/LmCode.Tests/LmCode.Tests" + ext), "--invocation-tests"]);
   step([path_join(Directory, "artifacts/LmCode.Tests/LmCode.Tests" + ext), "--return-vector-tests"]);
+  step([path_join(Directory, "artifacts/LmCode.Tests/LmCode.Tests" + ext), "--rest-tests"]);
   step([path_join(Directory, "artifacts/RuleEntries/RuleEntries" + ext), "artifacts/rule-entries.dslb"]);
 }
 

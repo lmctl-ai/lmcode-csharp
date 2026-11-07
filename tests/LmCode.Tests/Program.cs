@@ -8,6 +8,8 @@ static class Tests
         if(args.Length>=3 && args[0]=="--invocation-fixture")return InvocationVectorTests.Child(args[1..]);
         if (args is ["--write-vector-locks", var commit]) { VectorPinTests.Write(commit); return 0; }
         if (args is ["--vector-pins"]) { VectorPinTests.Run(); return 0; }
+        if (args is ["--rest-tests"]) { try { RestTests.Run(); return 0; } catch (Exception e) { Console.Error.WriteLine("FAIL rest tests: " + e.Message); return 1; } }
+        if (args.Length >= 3 && args[0] == "--rest-serve") return LmCode.Rest.RestServeHost.Run(args[1..]);
         if (args is ["--entry-tests"]) { EntryTests.Run(); return 0; }
         if (args is ["--string-catalog"]) { StringCatalogTests.Run(); return 0; }
         if (args is ["--catalog-v2"]) { CatalogV2Tests.Run(); return 0; }
@@ -49,7 +51,8 @@ static class Tests
         int ruleMethods = RuleMethodsPinTests.Run();
         int entries = EntryTests.Run();
         int pins = VectorPinTests.Run();
-        Console.WriteLine($"PASS unit tests ({checks.Length + 6 + results + verified + catalog + collections + math + standard + files + v2 + encoding + ruleMethods + entries + pins})"); return 0;
+        int rest = RestTests.Run();
+        Console.WriteLine($"PASS unit tests ({checks.Length + 6 + results + verified + catalog + collections + math + standard + files + v2 + encoding + ruleMethods + entries + pins + rest})"); return 0;
     }
 
     static bool RawBytes()

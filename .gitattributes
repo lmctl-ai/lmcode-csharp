@@ -13,3 +13,7 @@ conformance/stdlib-vectors/*.expect text eol=lf
 # Canonical standard bytes and their digest must survive Windows checkout.
 std/*.json text eol=lf
 std/std.lock text eol=lf
+
+# The REST suite is SHA-256 pinned (rest-suite.lock) and bound to the host schema bytes: never convert line endings.
+conformance/rest-suite/** -text
+rest-suite.lock text eol=lf
